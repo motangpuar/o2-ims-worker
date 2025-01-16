@@ -1,0 +1,30 @@
+version: '2'
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx-netboot
+    ports:
+      - "80:80"
+    volumes:
+      - ./confs/nginx.conf:/etc/nginx/nginx.conf:z
+      - ./assets/boot:/usr/share/nginx/html/boot:z
+  postgres:
+    container_name: postgres
+    image: postgres:9.6
+    volumes:
+      - ./scripts/create-db.sql:/docker-entrypoint-initdb.d/create-db.sql:Z
+    environment:
+      - POSTGRES_USER=nnag
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "54321:5432"
+  ims-worker:
+    container: pxe-boot
+    image: localhost/ims-worker:latest
+    command: "/usr/bin/ims-worker"
+    network_mode: host
+    volumes:
+      - ./assets/boot/:/var/lib/tftpboot/boot:z
+      - ./pxelinux.cfg:/var/lib/tftpboot/pxelinux.cfg:z
+    privileged:
+      - true

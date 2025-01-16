@@ -1,0 +1,60 @@
+#52:54:00:22:e5:fc
+
+timeout 100
+ui menu.c32
+menu title Infidel's PXE boot Manager
+# Background image *must* be the same resolution as the resolution here.
+#MENU RESOLUTION 640 480
+#MENU BACKGROUND bg.png
+
+# White on a black/transparent background.
+MENU COLOR screen * #ffffffff #00000000 std
+
+# Blue borders on a black/transparent background.
+# Borders have padding, so that background matters.
+MENU COLOR border * #ff0000ff #00000000 std
+
+# Title bar is cyan on a black/transparent background.
+MENU COLOR title * #ff00ffff #00000000 std
+
+# Selection bar is white on a magenta/opaque background.
+MENU COLOR sel * #ffffffff #ffff00ff none
+
+# Unselected menu items are white on black/transparent.
+MENU COLOR unsel * #ffffffff #00000000 std
+# menu resolution 604 455
+# menu background bg.png
+# default worker
+default ubuntu-jammy
+prompt 0
+
+label worker
+    menu label Ignite Openshift: worker < 52:54:00:22:e5:fc >
+
+    KERNEL boot/rhcos-live-kernel-x86_64
+    APPEND initrd=boot/rhcos-live-initramfs.x86_64.img coreos.live.rootfs_url=http://192.169.22.1:8080/boot/rhcos/rhcos-live-rootfs.x86_64.img coreos.inst.install_dev=/dev/vda coreos.inst.ignition_url=http://192.169.22.1:8080/boot/auth/worker.ign  
+
+label ubuntu-jammy
+    menu label Ubuntu 22.04
+
+    KERNEL boot/ubuntu/jammy/vmlinuz
+    INITRD boot/ubuntu/jammy/initrd
+    APPEND ip=dhcp url=http://10.70.1.1/boot/ubuntu/jammy/ubuntu-24.04-latest-live-server-amd64.iso cloud-config-url=/dev/null ds=nocloud-net;s=http://10.70.1.1/boot/ubuntu/jammy/metadata/ root=/dev/ram0 ramdisk_size=4000000 autoinstall
+
+label ubuntu-jammy-no-ram
+    menu label Ubuntu 22.04 NO RAM
+
+    KERNEL boot/ubuntu/jammy/vmlinuz
+    INITRD boot/ubuntu/jammy/initrd
+    APPEND ip=dhcp url=http://10.70.1.1/boot/ubuntu/jammy/ubuntu-24.04-latest-live-server-amd64.iso cloud-config-url=/dev/null ds=nocloud-net;s=http://10.70.1.1/boot/ubuntu/jammy/metadata/ root=/dev/ram0
+
+label rhel-ks
+    menu label Unattend Installation of RHEL7
+    KERNEL rhel/vmlinuz
+    APPEND biosdevname=0 ksdevice=link load_ramdisk=1 initrd=boot/assets/boot/rhel/9.0/initrd.img network ks=http://10.70.1.1/boot/rhel/9.0/anaconda-ks.cfg noipv6
+
+label localboot
+    menu label Boot from Local Drive
+    localboot 0
+menu end
+        
