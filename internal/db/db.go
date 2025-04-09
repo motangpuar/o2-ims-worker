@@ -216,3 +216,23 @@ func compareIPs(ip1, ip2 net.IP) int {
 	}
 	return 0
 }
+
+// GetLeaseByMAC retrieves a lease by MAC address
+func (handler *DBHandler) GetLeaseByMAC(ctx context.Context, macAddress string) (Lease, error) {
+	query := `
+		SELECT ip_address, mac_address, hostname, lease_start, lease_end, binding_state,
+		       last_transaction, next_binding_state, bootfile_url, tftp_server, ip_pool_id
+		FROM leases
+		WHERE mac_address = $1
+		ORDER BY lease_end DESC
+		LIMIT 1
+	`
+	
+	var lease Lease
+	err := handler.pool.QueryRow(ctx, query, macAddress).Scan(
+		&lease.IPAddress, &lease.MACAddress, &lease.Hostname, &lease.LeaseStart,
+		&lease.LeaseEnd, &lease.BindingState, &lease.LastTransaction,
+		&lease.NextBindingState, &lease.BootfileURL, &lease.TFTPServer, &lease.IPPoolID)
+	
+	return lease, err
+}

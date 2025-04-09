@@ -33,7 +33,8 @@ CREATE TABLE leases (
 INSERT INTO ip_pools (cidr, gateway, description) VALUES
 ('192.168.1.0/24', '192.168.1.1', 'Default Pool'),
 ('10.0.0.0/16', '10.0.0.1', 'Corporate Pool'),
-('10.70.1.0/24', '10.70.1.1', 'BMW Pool');
+('10.70.1.0/24', '10.70.1.1', 'BMW Pool'),
+('10.80.1.0/24', '10.80.1.1', 'NUC Pool');
 
 INSERT INTO leases (
     ip_address, mac_address, hostname, lease_start, lease_end,
@@ -48,6 +49,9 @@ INSERT INTO leases (
  'active', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
 ('10.70.1.5', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
  'active', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
+('10.80.1.100', '94:c6:91:1e:95:4b', 'intel-nuc-00', NOW(), NOW() + INTERVAL '1 hour',
+'active', NOW(), 'released', '/pxelinux.0', '10.80.1.1', 1),
 ('192.168.1.1', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
  'active', NOW(), 'released', '/path/to/bootfile', '192.168.1.1', 1);
+ 
 
