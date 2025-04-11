@@ -201,7 +201,6 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
     
     reply, err := dhcpv4.NewReplyFromRequest(m)
 
-
     // LegacyPXE 
     if isLegacyPXE {
         reply.SetBroadcast()
@@ -219,6 +218,7 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
 
     // Get the fixed server IP (should be set in config)
     serverIP := net.ParseIP("10.80.1.1")
+
     if serverIP == nil {
         log.Printf("Invalid server IP: %s", config.serverIP)
         return
@@ -229,93 +229,119 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
 
     // Check if MAC already has a lease
     ctx := context.Background()
-    offerIP, offerGateway, exists, dbErr := checkExistingLease(ctx, cidr, m)
-    
+    offerIP, offerGateway, offerBootfile, exists, dbErr := checkExistingLease(ctx, cidr, m)
     if dbErr != nil {
         log.Printf("Failed to check lease: %v", dbErr)
         return
     }
-    
+
     if !exists {
+        // Uncomment this routine to allow non registered Device into our system
         // Get a new IP if no existing lease
-        offerIP, offerGateway, dbErr = invokeDB(cidr, m)
-        if dbErr != nil {
-            log.Printf("Failed to invoke DB handler: %v", dbErr)
+        // offerIP, offerGateway, dbErr = invokeDB(cidr, m)
+        // if dbErr != nil {
+        //     log.Printf("Failed to invoke DB handler: %v", dbErr)
+        //     return
+        // }
+        log.Printf("Unknown Device detected")
+        return
+    } else {
+
+        // Update DB When found: Lease Time
+        handlerConn := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
+        updateRet, dbStatus := invokeDBUpdate(handlerConn, m.ClientHWAddr.String())
+
+        if dbStatus != nil {
+            log.Printf("Lease Status error %v", updateRet)
             return
         }
-    }
 
-    log.Printf("Offering IP %s to client %s (Gateway: %s)", offerIP, m.ClientHWAddr.String(), offerGateway)
+        log.Printf("Offering IP %s to client %s (Gateway: %s)", offerIP, m.ClientHWAddr.String(), offerGateway)
 
-    // Offer Values
-    reply.YourIPAddr = net.ParseIP("10.80.1.10") // Temporary IP
-    reply.ServerIPAddr = serverIP
-    reply.GatewayIPAddr = net.ParseIP(offerGateway)
-    
-    // PXE boot requires specific fields
-    if isPXEClient(m) {
-        log.Printf("PXE client detected: %s", m.ClientHWAddr)
+        // Offer Values
+        reply.YourIPAddr = net.ParseIP(offerIP) // Temporary IP
+        reply.ServerIPAddr = serverIP
+        reply.GatewayIPAddr = net.ParseIP(offerGateway)
         
-        // Use consistent server IP for DHCP and TFTP
-        bootServer := serverIP
-        
-        // Make boot filename relative to TFTP root and ensure it exists
-        bootFileName := config.bootFilePath
+        // PXE boot requires specific fields
+        if isPXEClient(m) {
+            log.Printf("PXE client detected: %s", m.ClientHWAddr)
+            
+            // Use consistent server IP for DHCP and TFTP
+            bootServer := serverIP
+            
+            // Make boot filename relative to TFTP root and ensure it exists
+            log.Printf("---------------------------")
+            log.Printf("Offerbootfile: %s", offerBootfile)
+            log.Printf("---------------------------")
+            bootFileName := config.bootFilePath
 
-        // legacy dumb ass
-        //reply.NextServerIPAddr = serverIP
+            // legacy dumb ass
+            //reply.NextServerIPAddr = serverIP
+            
+            // PXE specific options
+            reply.ServerHostName = offerGateway
+            reply.BootFileName = bootFileName
+            
+            // Server identifier must be constant
+            reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+            
+            // Network config
+            reply.UpdateOption(dhcpv4.OptSubnetMask(net.IPMask(net.IP{255, 255, 255, 0})))
+            reply.UpdateOption(dhcpv4.OptRouter(net.ParseIP(offerGateway)))
+            reply.UpdateOption(dhcpv4.OptDNS(net.IP{8, 8, 8, 8}))
+            
+            // PXE options
+            reply.UpdateOption(dhcpv4.OptTFTPServerName(bootServer.String()))
+            reply.UpdateOption(dhcpv4.OptBootFileName(bootFileName))
+            
+            // Vendor specific for PXE islegacyPXE function is not 
+            // working properly deal with it later
+            //
+            // if (isLegacyPXE) {
+            //     log.Printf("Client is Not LegacyPXE applying Class Identifier")
+            //     reply.UpdateOption(dhcpv4.OptClassIdentifier("PXEClient"))
+            // }
 
+        } else {
+            // Standard DHCP options for non-PXE clients
+            reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+            reply.UpdateOption(dhcpv4.OptSubnetMask(net.IPMask(net.IP{255, 255, 255, 0})))
+            reply.UpdateOption(dhcpv4.OptRouter(net.ParseIP(offerGateway)))
+            reply.UpdateOption(dhcpv4.OptDNS(net.IP{8, 8, 8, 8}))
+        }
         
-        // PXE specific options
-        //reply.ServerHostName = "10.80.1.1"
-        reply.BootFileName = bootFileName
+        // Set lease time
+        reply.UpdateOption(dhcpv4.OptIPAddressLeaseTime(time.Hour * 12))
         
-        // Server identifier must be constant
-        reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-        
-        // Network config
-        reply.UpdateOption(dhcpv4.OptSubnetMask(net.IPMask(net.IP{255, 255, 255, 0})))
-        reply.UpdateOption(dhcpv4.OptRouter(net.ParseIP(offerGateway)))
-        reply.UpdateOption(dhcpv4.OptDNS(net.IP{8, 8, 8, 8}))
-        
-        // PXE options
-        reply.UpdateOption(dhcpv4.OptTFTPServerName(bootServer.String()))
-        reply.UpdateOption(dhcpv4.OptBootFileName(bootFileName))
-        
-        // Vendor specific for PXE
-        //reply.UpdateOption(dhcpv4.OptClassIdentifier("PXEClient"))
+        // Set appropriate response type
+        switch mt := m.MessageType(); mt {
+        case dhcpv4.MessageTypeDiscover:
+            log.Printf("DHCP Discover from %s", m.ClientHWAddr)
+            reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
+        case dhcpv4.MessageTypeRequest:
+            log.Printf("DHCP Request from %s", m.ClientHWAddr)
+            reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
+        default:
+            log.Printf("Unhandled Message type: %v", mt)
+            return
+        }
 
-    } else {
-        // Standard DHCP options for non-PXE clients
-        reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-        reply.UpdateOption(dhcpv4.OptSubnetMask(net.IPMask(net.IP{255, 255, 255, 0})))
-        reply.UpdateOption(dhcpv4.OptRouter(net.ParseIP(offerGateway)))
-        reply.UpdateOption(dhcpv4.OptDNS(net.IP{8, 8, 8, 8}))
-    }
-    
-    // Set lease time
-    reply.UpdateOption(dhcpv4.OptIPAddressLeaseTime(time.Hour * 12))
-    
-    // Set appropriate response type
-    switch mt := m.MessageType(); mt {
-    case dhcpv4.MessageTypeDiscover:
-        log.Printf("DHCP Discover from %s", m.ClientHWAddr)
-        reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
-    case dhcpv4.MessageTypeRequest:
-        log.Printf("DHCP Request from %s", m.ClientHWAddr)
-        reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
-    default:
-        log.Printf("Unhandled Message type: %v", mt)
-        return
-    }
+        // Log the reply we're sending
+        log.Printf("Sending reply: %s", reply.Summary())
 
-    // Log the reply we're sending
-    log.Printf("Sending reply: %s", reply.Summary())
+        // Send the response
+        if _, err := conn.WriteTo(reply.ToBytes(), peer); err != nil {
+            log.Printf("Cannot reply to client: %v", err)
+            return
+        }
 
-    // Send the response
-    if _, err := conn.WriteTo(reply.ToBytes(), peer); err != nil {
-        log.Printf("Cannot reply to client: %v", err)
-        return
+        // Print IP Pools and Leases 
+        leaseStatus, dbErr :=  checkLeases(ctx, cidr)
+        if dbErr != nil {
+            log.Printf("Lease Status error %v", leaseStatus)
+            return
+        }
     }
 }
 
@@ -379,20 +405,21 @@ func isLegacyPXEClient(m *dhcpv4.DHCPv4) bool {
 }
 
 // checkExistingLease checks if a MAC already has a lease and returns it
-func checkExistingLease(ctx context.Context, cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, bool, error) {
+func checkExistingLease(ctx context.Context, cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, string, bool, error) {
     connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
     // Initialize DB handler
     dbHandler, err := db.NewDBHandler(connStr)
     if err != nil {
-        return "", "", false, fmt.Errorf("failed to connect to database: %v", err)
+        return "", "", "", false, fmt.Errorf("failed to connect to database: %v", err)
     }
+
     defer dbHandler.Close()
 
     // Get IP pool for gateway info
     ipPools, err := dbHandler.GetIPPools(ctx)
     if err != nil {
-        return "", "", false, fmt.Errorf("error getting IP pools: %v", err)
+        return "", "", "", false, fmt.Errorf("error getting IP pools: %v", err)
     }
     
     var gateway string
@@ -404,24 +431,71 @@ func checkExistingLease(ctx context.Context, cidr string, dhcpMessage *dhcpv4.DH
     }
     
     if gateway == "" {
-        return "", "", false, fmt.Errorf("no gateway found for CIDR %s", cidr)
+        return "", "", "", false, fmt.Errorf("no gateway found for CIDR %s", cidr)
     }
 
     // Check if MAC already has a lease
     macAddress := dhcpMessage.ClientHWAddr.String()
     lease, err := dbHandler.GetLeaseByMAC(ctx, macAddress)
+    //offerIP, offerGateway, exists, dbErr := checkExistingLease(ctx, cidr, m)
+
     if err != nil {
         // If it's a "not found" error, return false
-        return "", gateway, false, nil
+        return "", gateway, lease.BootfileURL, false, nil
     }
     
     // Check if lease is still valid
     if lease.LeaseEnd.After(time.Now()) {
-        return lease.IPAddress, gateway, true, nil
+        return lease.IPAddress, gateway, lease.BootfileURL,  true, nil
     }
     
     // Lease expired, return false
-    return "", gateway, false, nil
+    return "", gateway, lease.BootfileURL, false, nil
+
+}
+
+func checkLeases(ctx context.Context, cidr string) (bool, error) {
+
+    connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
+
+    dbHandler, err := db.NewDBHandler(connStr)
+    if err != nil {
+        return false, fmt.Errorf("failed to connect to database: %v", err)
+    }
+
+    defer dbHandler.Close()
+
+    // Get IP pool for gateway info
+    ipPools, err := dbHandler.GetIPPools(ctx)
+    if err != nil {
+        return false, fmt.Errorf("error getting IP pools: %v", err)
+    }
+
+    fmt.Println("Pool Lists:")
+    for _, pool := range ipPools {
+        fmt.Printf("%d, %s, %s, %s\n", pool.ID, pool.CIDR, pool.Gateway, pool.Description)
+    }
+
+    // Get IP pool for gateway info
+    leases, err := dbHandler.GetLeases(ctx)
+
+    if err != nil {
+        return false, fmt.Errorf("error getting IP Leases: %v", err)
+    }
+
+    fmt.Println("[Pool Lists]")
+    for _, lease := range leases {
+        fmt.Printf("%s, %s, %s, %s, %s, %s\n",
+            lease.IPAddress,
+            lease.MACAddress,
+            lease.BindingState,
+            lease.Hostname,
+            lease.BootfileURL,
+            lease.LastTransaction)
+    }
+
+    return true, nil
+
 }
 
 type logHook struct{}
@@ -658,6 +732,35 @@ func invokeDB(cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, error) {
     }
 
     return offerIP, offerGateway, nil
+}
+
+func invokeDBUpdate(connStr string, macAddress string)(string,error){
+    // Initialize DB handler
+    dbHandler, err := db.NewDBHandler(connStr)
+    if err != nil {
+        return "", fmt.Errorf("failed to connect to database: %v", err)
+    }
+    defer dbHandler.Close()
+
+    ctx := context.Background()
+
+    lease := db.Lease{
+        MACAddress:       macAddress,
+        LeaseStart:       time.Now(),
+        LeaseEnd:         time.Now().Add(12 * time.Hour),
+        BindingState:     "active",
+        LastTransaction:  time.Now(),
+        NextBindingState: "expired",
+        IPPoolID:         1,
+    }
+
+    err = dbHandler.UpdateLease(ctx, lease)
+    if err != nil {
+        return "", fmt.Errorf("error adding lease: %v", err)
+    }
+
+    return "", nil
+
 }
 
 func getOutboundIP() (net.IP, error) {

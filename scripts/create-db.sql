@@ -42,16 +42,18 @@ INSERT INTO leases (
     tftp_server, ip_pool_id
 ) VALUES
 ('10.70.1.2', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
- 'active', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
+ 'inactive', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
 ('10.70.1.3', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
- 'active', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
+ 'inactive', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
 ('10.70.1.4', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
- 'active', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
+ 'inactive', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
 ('10.70.1.5', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
- 'active', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
+ 'inactive', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
 ('10.80.1.100', '94:c6:91:1e:95:4b', 'intel-nuc-00', NOW(), NOW() + INTERVAL '1 hour',
-'active', NOW(), 'released', '/pxelinux.0', '10.80.1.1', 1),
+'inactive', NOW(), 'released', 'pxelinux.0', '10.80.1.1', 3),
+('10.70.1.20', '52:54:00:b4:a9:ca', 'kvm-00', NOW(), NOW() + INTERVAL '1 hour',
+'inactive', NOW(), 'released', 'pxelinux.0', '10.70.1.1', 2),
 ('192.168.1.1', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
- 'active', NOW(), 'released', '/path/to/bootfile', '192.168.1.1', 1);
+ 'inactive', NOW(), 'released', '/path/to/bootfile', '192.168.1.1', 1);
  
 

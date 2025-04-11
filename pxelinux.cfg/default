@@ -1,6 +1,6 @@
 #52:54:00:22:e5:fc
 
-timeout 100
+timeout 300
 ui menu.c32
 menu title Infidel's PXE boot Manager
 # Background image *must* be the same resolution as the resolution here.
@@ -25,36 +25,48 @@ MENU COLOR unsel * #ffffffff #00000000 std
 # menu resolution 604 455
 # menu background bg.png
 # default worker
-default ubuntu-jammy
+#default ubuntu-jammy
+default localboot
 prompt 0
 
-label worker
-    menu label Ignite Openshift: worker < 52:54:00:22:e5:fc >
+# label worker
+#     menu label RHCOS
+#     KERNEL boot/rhcos-live-kernel-x86_64
+#     APPEND initrd=boot/rhcos-live-initramfs.x86_64.img coreos.live.rootfs_url=http://192.169.22.1:8080/boot/rhcos/rhcos-live-rootfs.x86_64.img coreos.inst.install_dev=/dev/vda coreos.inst.ignition_url=http://192.169.22.1:8080/boot/auth/worker.ign  
 
-    KERNEL boot/rhcos-live-kernel-x86_64
-    APPEND initrd=boot/rhcos-live-initramfs.x86_64.img coreos.live.rootfs_url=http://192.169.22.1:8080/boot/rhcos/rhcos-live-rootfs.x86_64.img coreos.inst.install_dev=/dev/vda coreos.inst.ignition_url=http://192.169.22.1:8080/boot/auth/worker.ign  
+label 
+    menu label RHEL-9.5
+    KERNEL boot/rhel/9.2/images/pxeboot/vmlinuz
+    INITRD boot/rhel/9.2/images/pxeboot/initrd.img
+    #APPEND ksdevice=eth0 load_ramdisk=1 inst.ks=http://10.80.1.1/boot/rhel/rhel9.5/ks.cfg ip=eth0:dhcp
+    APPEND inst.ks=http://10.80.1.1/boot/rhel/rhel9.5/ks.cfg ip=dhcp inst.repo=http://10.80.1.1/boot/rhel/9.2/ inst.stage2=http://10.80.1.1/boot/rhel/9.2
+    
+label 
+    menu label RHEL-Rescue
+    KERNEL boot/rhel/rhel9.3/vmlinuz
+    INITRD boot/rhel/rhel9.3/initrd.img
+    #APPEND ksdevice=eth0 load_ramdisk=1 inst.ks=http://10.80.1.1/boot/rhel/rhel9.5/ks.cfg ip=eth0:dhcp
+    APPEND inst.ks=http://10.80.1.1/boot/rhel/rhel9.5/ks.cfg ip=dhcp inst.repo=http://10.80.1.1/boot/rhel/rhel9.5/ inst.stage2=http://10.80.1.1/boot/rhel/rhel9.5
 
 label ubuntu-jammy
     menu label Ubuntu 22.04
-
     KERNEL boot/ubuntu/jammy/vmlinuz
     INITRD boot/ubuntu/jammy/initrd
-    APPEND ip=dhcp url=http://10.70.1.1/boot/ubuntu/jammy/ubuntu-24.04-latest-live-server-amd64.iso cloud-config-url=/dev/null ds=nocloud-net;s=http://10.70.1.1/boot/ubuntu/jammy/metadata/ root=/dev/ram0 ramdisk_size=4000000 autoinstall
+    APPEND ip=dhcp url=http://10.80.1.1/boot/ubuntu/jammy/ubuntu-24.04-latest-live-server-amd64.iso cloud-config-url=/dev/null ds=nocloud-net;s=http://10.80.1.1/boot/ubuntu/jammy/metadata/ root=/dev/ram0 ramdisk_size=4000000 autoinstall
 
 label ubuntu-jammy-no-ram
     menu label Ubuntu 22.04 NO RAM
-
     KERNEL boot/ubuntu/jammy/vmlinuz
     INITRD boot/ubuntu/jammy/initrd
-    APPEND ip=dhcp url=http://10.70.1.1/boot/ubuntu/jammy/ubuntu-24.04-latest-live-server-amd64.iso cloud-config-url=/dev/null ds=nocloud-net;s=http://10.70.1.1/boot/ubuntu/jammy/metadata/ root=/dev/ram0
+    APPEND ip=dhcp url=http://10.80.1.1/boot/ubuntu/jammy/ubuntu-24.04-latest-live-server-amd64.iso cloud-config-url=/dev/null ds=nocloud-net;s=http://10.80.1.1/boot/ubuntu/jammy/metadata/ root=/dev/ram0
 
 label rhel-ks
     menu label Unattend Installation of RHEL7
     KERNEL rhel/vmlinuz
-    APPEND biosdevname=0 ksdevice=link load_ramdisk=1 initrd=boot/assets/boot/rhel/9.0/initrd.img network ks=http://10.70.1.1/boot/rhel/9.0/anaconda-ks.cfg noipv6
+    APPEND biosdevname=0 ksdevice=link load_ramdisk=1 initrd=boot/assets/boot/rhel/9.0/initrd.img network ks=http://10.80.1.1/boot/rhel/9.0/anaconda-ks.cfg noipv6
 
 label localboot
     menu label Boot from Local Drive
-    localboot 0
+    localboot 1
 menu end
         

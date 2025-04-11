@@ -97,6 +97,40 @@ func (handler *DBHandler) AddLease(ctx context.Context, lease Lease) error {
 	return err
 }
 
+// Update Lease
+func (handler *DBHandler) UpdateLease(ctx context.Context, lease Lease) error {
+	//query := `
+    //UPDATE leases SET 
+	//	ip_address = $1,
+    //    mac_address = $2,
+    //    hostname = $3,
+    //    lease_start = $4,
+    //    lease_end = $5,
+    //    binding_state = $6,
+	//	last_transaction = $7,
+    //    next_binding_state = $8,
+    //    bootfile_url = $9,
+    //    tftp_server = $10,
+    //    ip_pool_id = $11
+    //WHERE mac_address = $2
+	//`
+	query := `
+    UPDATE leases SET 
+        mac_address = $1,
+        lease_start = $2,
+        lease_end = $3,
+        binding_state = $4,
+		last_transaction = $5,
+        next_binding_state = $6,
+        ip_pool_id = $7
+    WHERE mac_address = $1
+	`
+	_, err := handler.pool.Exec(ctx, query,
+        lease.MACAddress, lease.LeaseStart, lease.LeaseEnd, lease.BindingState,
+        lease.LastTransaction, lease.NextBindingState, lease.IPPoolID)
+	return err
+}
+
 // Get all leases
 func (handler *DBHandler) GetLeases(ctx context.Context) ([]Lease, error) {
 	query := `
