@@ -22,6 +22,7 @@ import (
         // Internals
         "git.nnag.me/infidel/boothandler-go/internal/db"
         "git.nnag.me/infidel/boothandler-go/internal/api"
+        "git.nnag.me/infidel/boothandler-go/internal/metrics"
 )
 
 type Packet struct {
@@ -70,8 +71,16 @@ func main() {
         log.Fatal("IMS_API_USERNAME, IMS_API_PASSWORD and IMS_API_URL environment variables are required")
     }
 
+	// New: Get metrics URL from environment or use default
+	metricsURL := os.Getenv("IMS_METRICS_URL")
+	if metricsURL == "" {
+		metricsURL = apiURL + "/api/v1/metrics" // Default endpoint
+	}
     // Create API client with authentication
     apiClient := api.NewAPIClient(apiURL, workerID, username, password)
+
+	// New: Create metrics collector
+	metricsCollector := metrics.NewCollector(workerID, metricsURL, username, password)
 
     // Get IP address
     ip, err := getOutboundIP()
@@ -98,6 +107,9 @@ func main() {
     // Start heartbeat goroutine
     go func() {
         for {
+            // NEW: Add metrics to heartbeat
+            metricCounts := metricsCollector.GetMetricCounts()
+
             status := api.WorkerStatus{
                 Services: map[string]api.ServiceStatus{
                     "dhcp": {Status: "running"},
@@ -107,8 +119,15 @@ func main() {
                     "memory_usage": 123456,
                     "cpu_usage": 5.2,
                     "active_leases": 10,
+                    // NEW: Add metric counts to status
+                    "metrics_collected": len(metricCounts),
                 },
             }
+
+			// New: Include metrics counts in heartbeat
+			for metricType, count := range metricCounts {
+				status.Metrics[metricType] = count
+			}
 
             if err := apiClient.SendHeartbeat(status); err != nil {
                 log.Printf("Failed to send heartbeat: %v", err)
@@ -119,10 +138,23 @@ func main() {
                 log.Printf("Failed to get machines: %v", err)
                 continue
             }
+
+
             for _, machine := range machines {
                 fmt.Printf("Machine: %s (IP: %s, Cluster: %s, Status: %s)\n", 
                     machine.Hostname, machine.IP, machine.ClusterName, machine.Status)
+
+                // NEW: Record metric for machine processing
+                metricsCollector.RecordMetric("pxe.machine.processed", 1, machine.MAC, machine.IP, map[string]string{
+                    "hostname": machine.Hostname,
+                    "status": machine.Status,
+                })
+                updateDB(machine)
+
             }
+
+            // NEW: Ensure we report any buffered metrics
+            metricsCollector.ReportMetrics()
 
             time.Sleep(10 * time.Second)
             fmt.Printf("---------------------------------------------\n")
@@ -173,14 +205,18 @@ func main() {
 
     // Start TFTP server first
     log.Printf("Initializing TFTP server...")
-    go tftpHandler(tc)
+	go tftpHandler(tc, metricsCollector)
     
     // Give TFTP server time to initialize
     time.Sleep(2 * time.Second)
     
     // Then start DHCP server
     log.Printf("Initializing DHCP server...")
-    dhcpHandler(dc)
+	go dhcpHandler(dc, metricsCollector)
+
+	// Wait indefinitely
+	wait := make(chan struct{})
+	<-wait
 
 }
 
@@ -500,6 +536,12 @@ func checkLeases(ctx context.Context, cidr string) (bool, error) {
 
 type logHook struct{}
 
+type transferStats struct {
+	Filename string
+	RemoteAddr net.UDPAddr
+	BytesTransferred int64
+}
+
 func (h *logHook) OnSuccess(stats tftp.TransferStats) {
     fmt.Printf("Transfer of %s to %s complete\n", stats.Filename, stats.RemoteAddr)
     //fmt.Printf("Transfer of %s to %s complete (%d bytes)\n", stats.Filename, stats.RemoteAddr, stats.BytesTransferred)
@@ -509,19 +551,40 @@ func (h *logHook) OnFailure(stats tftp.TransferStats, err error) {
     fmt.Printf("Transfer of %s to %s failed: %v\n", stats.Filename, stats.RemoteAddr, err)
 }
 
-func dhcpHandler(dc dhcpConfig) {
+func dhcpHandler(dc dhcpConfig, metricsCollector *metrics.Collector) {
+
     laddr := &net.UDPAddr{
         IP:   net.ParseIP(dc.bindAddr),
         Port: 67,
     }
 
-    // Create a handler function that includes the config
-    handlerWithConfig := func(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
+    // Create a handler function that includes metrics
+    handlerWithMetrics := func(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
+        // Record metrics BEFORE processing
+        if metricsCollector != nil {
+            switch mt := m.MessageType(); mt {
+            case dhcpv4.MessageTypeDiscover:
+                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPDiscoverCount, m.ClientHWAddr.String(), "", 1)
+            case dhcpv4.MessageTypeRequest:
+                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPRequestCount, m.ClientHWAddr.String(), "", 1)
+            }
+        }
+        
+        // Call original handler
         handler(conn, peer, m, dc)
+        
+        // Record metrics AFTER processing - assuming success
+        if metricsCollector != nil {
+            switch mt := m.MessageType(); mt {
+            case dhcpv4.MessageTypeDiscover:
+                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPOfferCount, m.ClientHWAddr.String(), "", 1)
+            case dhcpv4.MessageTypeRequest:
+                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPAckCount, m.ClientHWAddr.String(), "", 1)
+            }
+        }
     }
 
-    // Use a specific interface if provided, otherwise use "any" interface
-    //interfaceName := "dhcp-test"
+    // Rest of your original code
     interfaceName := "enp0s20f0u4"
     if dc.bindInterface != "" {
         interfaceName = dc.bindInterface
@@ -529,7 +592,7 @@ func dhcpHandler(dc dhcpConfig) {
 
     log.Printf("Starting DHCP server on %s:%d (interface: %s)", dc.bindAddr, 67, interfaceName)
     
-    server, err := server4.NewServer(interfaceName, laddr, handlerWithConfig)
+    server, err := server4.NewServer(interfaceName, laddr, handlerWithMetrics)
     if err != nil {
         log.Fatalf("Failed to create DHCP server: %v", err)
     }
@@ -538,16 +601,25 @@ func dhcpHandler(dc dhcpConfig) {
     if err := server.Serve(); err != nil {
         log.Fatalf("DHCP server error: %v", err)
     }
+
 }
 
-func tftpHandler(tc tftpConfig) {
+func tftpHandler(tc tftpConfig, metricsCollector *metrics.Collector) {
+	// Log existing hook
+	originalHook := &logHook{}
+
     // Ensure TFTP root directory exists
     if _, err := os.Stat(tc.rootDir); os.IsNotExist(err) {
         log.Fatalf("TFTP root directory does not exist: %s", tc.rootDir)
     }
     
+	// Create TFTP metrics hook
+	metricsHook := metrics.NewTFTPMetricsHook(metricsCollector, tc.rootDir)
+
     // Set TFTP read callback with root directory
-    readHandler := func(filename string, rf io.ReaderFrom) error {
+    readHandler := metricsHook.ReadHandler(func(filename string, rf io.ReaderFrom) error {
+        // Your original read handler logic
+        
         // Normalize path by removing leading slash if present
         if filename[0] == '/' {
             filename = filename[1:]
@@ -557,6 +629,11 @@ func tftpHandler(tc tftpConfig) {
         fullPath := filepath.Join(tc.rootDir, filename)
         
         log.Printf("TFTP READ REQUEST: Client requested file: %s (full path: %s)", filename, fullPath)
+        
+        // Extract client IP for logging
+        remoteAddr := rf.(tftp.OutgoingTransfer).RemoteAddr()
+        clientIPPort := remoteAddr.String()
+        clientIP := clientIPPort[:strings.LastIndex(clientIPPort, ":")]
         
         // Check if the file exists
         if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -576,18 +653,39 @@ func tftpHandler(tc tftpConfig) {
         fileSize := fileInfo.Size()
         log.Printf("TFTP: Sending file %s (size: %d bytes)", filename, fileSize)
         
+        // Set file size if available in your TFTP library
+        if setter, ok := rf.(interface{ SetSize(int64) }); ok {
+            setter.SetSize(fileSize)
+        }
+        
+        startTime := time.Now()
         n, err := rf.ReadFrom(file)
+        duration := time.Since(startTime)
+        
         if err != nil {
             log.Printf("TFTP ERROR: Failed reading %s: %v", fullPath, err)
             return err
         }
 
-        log.Printf("TFTP SUCCESS: %d bytes sent for %s", n, filename)
+        log.Printf("TFTP SUCCESS: %d bytes sent for %s in %v", n, filename, duration)
+        
+        // Call the metrics hook's success callback directly
+        metricsLogHook := metrics.NewMetricsLogHook(metricsCollector, originalHook)
+        metricsLogHook.OnSuccess(clientIP, filename, n, duration)
+        
+        // Invoke the original logHook's OnSuccess
+        // originalHook.OnSuccess(transferStats{
+        //     Filename: filename,
+        //     RemoteAddr: remoteAddr,
+        //     BytesTransferred: n,
+        // })
+        
         return nil
-    }
+    })
     
     // Set TFTP write callback with root directory
-    writeHandler := func(filename string, wt io.WriterTo) error {
+	    // Set TFTP write callback with root directory
+    writeHandler := metricsHook.WriteHandler(func(filename string, wt io.WriterTo) error {
         // Normalize path
         if filename[0] == '/' {
             filename = filename[1:]
@@ -620,11 +718,14 @@ func tftpHandler(tc tftpConfig) {
 
         log.Printf("TFTP SUCCESS: %d bytes received for %s", n, filename)
         return nil
-    }
+    })
 
     // Create a new TFTP server with our handlers
     s := tftp.NewServer(readHandler, writeHandler)
-    s.SetHook(&logHook{})
+
+	// Wrap original hook kwih mertrics
+	//originalHook := &logHook{}
+	s.SetHook(originalHook)
     
     // Configure TFTP options
     s.SetTimeout(5 * time.Second)  // Set connection timeout
@@ -665,7 +766,58 @@ func tftpHandler(tc tftpConfig) {
     }
 }
 
+func updateDB(machine api.Machine)(bool, error){
+    connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
+    // Initialize DB handler
+    dbHandler, err := db.NewDBHandler(connStr)
+    if err != nil {
+        return false, fmt.Errorf("failed to connect to database: %v", err)
+    }
+    defer dbHandler.Close()
+
+    ctx := context.Background()
+
+    lease := db.Lease{
+        IPAddress:        machine.IP,
+        MACAddress:       machine.MAC,
+        Hostname:         machine.Hostname,
+        LeaseStart:       time.Now(),
+        LeaseEnd:         time.Now().Add(12 * time.Hour),
+        BindingState:     "inactive",
+        LastTransaction:  time.Now(),
+        NextBindingState: "expired",
+        BootfileURL:      "/pxelinux.0",
+        TFTPServer:       "10.80.1.1" ,
+        IPPoolID:         1,
+    }
+
+    // ID           int      `json:"id"`
+    // Hostname     string   `json:"hostname"`
+    // IP           string   `json:"ip"`
+    // MAC          string   `json:"mac"`
+    // Role         string   `json:"role"`
+    // OSType       string   `json:"os_type"`
+    // Status       string   `json:"status"`
+    // Health       string   `json:"health"`
+    // ClusterID    int      `json:"cluster"`
+    // ClusterName  string   `json:"cluster_name,omitempty"`
+
+    leaseStatus, dbErr :=  checkLeases(ctx, "10.80.1.0")
+
+    if dbErr != nil {
+        log.Printf("Lease Status error %v", leaseStatus)
+        return false, fmt.Errorf("error checking leases: %v", err)
+    }
+
+    err = dbHandler.AddLease(ctx, lease)
+    if err != nil {
+        return false, fmt.Errorf("error adding lease: %v", err)
+    }
+
+    return true, nil
+
+}
 func invokeDB(cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, error) {
     connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
@@ -758,9 +910,7 @@ func invokeDBUpdate(connStr string, macAddress string)(string,error){
     if err != nil {
         return "", fmt.Errorf("error adding lease: %v", err)
     }
-
     return "", nil
-
 }
 
 func getOutboundIP() (net.IP, error) {

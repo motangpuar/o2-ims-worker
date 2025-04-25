@@ -35,7 +35,7 @@ prompt 0
 #     APPEND initrd=boot/rhcos-live-initramfs.x86_64.img coreos.live.rootfs_url=http://192.169.22.1:8080/boot/rhcos/rhcos-live-rootfs.x86_64.img coreos.inst.install_dev=/dev/vda coreos.inst.ignition_url=http://192.169.22.1:8080/boot/auth/worker.ign  
 
 label 
-    menu label RHEL-9.5
+    menu label RHEL-9.2
     KERNEL boot/rhel/9.2/images/pxeboot/vmlinuz
     INITRD boot/rhel/9.2/images/pxeboot/initrd.img
     #APPEND ksdevice=eth0 load_ramdisk=1 inst.ks=http://10.80.1.1/boot/rhel/rhel9.5/ks.cfg ip=eth0:dhcp
