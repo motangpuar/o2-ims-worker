@@ -10,8 +10,8 @@ import (
 
         "io/ioutil"
         "path/filepath"
-
         "strings"
+		"flag"
 
         // TFTP
         "io"
@@ -23,6 +23,8 @@ import (
         "git.nnag.me/infidel/boothandler-go/internal/db"
         "git.nnag.me/infidel/boothandler-go/internal/api"
         "git.nnag.me/infidel/boothandler-go/internal/metrics"
+        "git.nnag.me/infidel/boothandler-go/internal/tools"
+        "git.nnag.me/infidel/boothandler-go/internal/k8s"
 )
 
 type Packet struct {
@@ -37,25 +39,55 @@ type Metadata struct {
 }
 
 type dhcpConfig struct {
-    enabled bool
-    mode    string
-    bindAddr    string
+    enabled       bool
+    mode          string
+    bindAddr      string
     bindInterface string
-    tftpIP  string
-    tftpPort    int
-    serverIP string  // Add server IP for consistent responses
-    bootFilePath string // Add boot file path configuration
+    tftpIP        string
+    tftpPort      int
+    serverIP      string  // Add server IP for consistent responses
+    bootFilePath  string // Add boot file path configuration
 }
 
 type tftpConfig struct {
-    enabled bool
-    bindAddr string
-    bindPort int
+    enabled   bool
+    bindAddr  string
+    bindPort  int
     blockSize int
-    rootDir string // Add TFTP root directory
+    rootDir   string // Add TFTP root directory
 }
 
 func main() {
+	// Kubernetes Related declaration
+
+	var (
+		kubeconfig = flag.String("Kubeconfig", "", "/root/.kube/config")
+		prometheusNamespace = flag.String("prom-namespace", "observability", "namespace where prometheus is deployed")
+		prometheusService = flag.String("prom-service","prometheus-operated","Prometheus service name")
+		//targetNamespace = flag.String("namespace","default","namespace to query metrics for")
+		queryType = flag.String("query","nodes","type of query: nodes, pods, custom")
+		//customQuery = flag.String("custom-qyery", "", "custom PromQL query")
+		insecure = flag.Bool("insecure", false, "skip TLS Verification")
+	)
+	flag.Parse()
+	
+	// Configure fetcher
+	opts := &k8s.Options{
+		KubeConfig: *kubeconfig,
+		HTTPTimeout: 30 * time.Second,
+		InsecureSkipVerify: *insecure,
+	}
+
+	// Create new metrics fetcher
+	fetcher, err := k8s.NewMetricsFetcher(opts)
+	if err != nil {
+		log.Fatalf("Failed to creat metrics fetcher: %v", err)
+	}
+
+	defer fetcher.Close()
+
+
+	//----------------------------------------------------------------------
     // Get worker ID (could be hostname or container ID)
     workerID, err := os.Hostname()
     if err != nil {
@@ -74,13 +106,13 @@ func main() {
 	// New: Get metrics URL from environment or use default
 	metricsURL := os.Getenv("IMS_METRICS_URL")
 	if metricsURL == "" {
-		metricsURL = apiURL + "/api/v1/metrics" // Default endpoint
+		//metricsURL = apiURL + "/api/machines/21/update_metrics/" // Default endpoint
+		metricsURL = apiURL + "/api/clusters/6/update_metrics/" // Default endpoint
 	}
+
     // Create API client with authentication
     apiClient := api.NewAPIClient(apiURL, workerID, username, password)
 
-	// New: Create metrics collector
-	metricsCollector := metrics.NewCollector(workerID, metricsURL, username, password)
 
     // Get IP address
     ip, err := getOutboundIP()
@@ -103,21 +135,42 @@ func main() {
     }
 
     log.Printf("Worker registered successfully with ID: %s", workerID)
+	authToken := apiClient.GetAuthHeader()
+	log.Printf("AuthToken: %s\n", authToken)
 
+	metricsCollector := metrics.NewCollector(workerID, metricsURL, username, password, apiClient)
+	ctx := context.Background()
     // Start heartbeat goroutine
     go func() {
         for {
+			// New: Create metrics collector
+
             // NEW: Add metrics to heartbeat
             metricCounts := metricsCollector.GetMetricCounts()
 
+			// Memory Info
+			memUsed,memTotal, err := system.GetMemoryUsage()
+			if err != nil {
+				fmt.Printf("Getting Memory error: %v", err)
+			}
+
+			// CPU Info
+			cpuPercentage,err := system.GetCPUUsage()
+			if err != nil {
+				fmt.Printf("Getting Memory error: %v", err)
+			}
+
+			fmt.Printf("Mem: %f Used of %f Total\n", memUsed, memTotal)
+			fmt.Printf("CPU: %f% \n", cpuPercentage)
             status := api.WorkerStatus{
                 Services: map[string]api.ServiceStatus{
                     "dhcp": {Status: "running"},
                     "tftp": {Status: "running"},
                 },
                 Metrics: map[string]interface{}{
-                    "memory_usage": 123456,
-                    "cpu_usage": 5.2,
+					// Find Real usecase 
+                    "memory_usage": memUsed, // in GB
+                    "cpu_usage": cpuPercentage, // Percentage
                     "active_leases": 10,
                     // NEW: Add metric counts to status
                     "metrics_collected": len(metricCounts),
@@ -141,8 +194,8 @@ func main() {
 
 
             for _, machine := range machines {
-                fmt.Printf("Machine: %s (IP: %s, Cluster: %s, Status: %s)\n", 
-                    machine.Hostname, machine.IP, machine.ClusterName, machine.Status)
+				fmt.Printf("ID: %d, Machine: %s (IP: %s, Cluster: %s, Status: %s)\n", 
+                    machine.ID, machine.Hostname, machine.IP, machine.ClusterName, machine.Status)
 
                 // NEW: Record metric for machine processing
                 metricsCollector.RecordMetric("pxe.machine.processed", 1, machine.MAC, machine.IP, map[string]string{
@@ -156,6 +209,20 @@ func main() {
             // NEW: Ensure we report any buffered metrics
             metricsCollector.ReportMetrics()
 
+
+            fmt.Printf("*****************[ K8S Stats ]*******************\n")
+			//k8sRet, err := k8s.GetKubeNode()
+			//fmt.Printf("Kubernetes status: %s", k8sRet)
+
+			switch *queryType {
+			case "nodes": 
+				if err := queryNodeMetrics(ctx, fetcher, *prometheusNamespace, *prometheusService); err != nil {
+					log.Fatalf("Failed to query node metrics: %v", err)
+				}
+			}
+
+			fmt.Printf("*************************************************\n")
+
             time.Sleep(10 * time.Second)
             fmt.Printf("---------------------------------------------\n")
         }
@@ -168,6 +235,7 @@ func main() {
     // Set up the server IP - this should be your actual server IP
     //serverIP := ip.String() // Using outbound IP by default
     serverIP := "10.80.1.1"
+
 
     if err != nil {
         log.Fatalf("Failed to get IP address: %v", err)
@@ -910,6 +978,7 @@ func invokeDBUpdate(connStr string, macAddress string)(string,error){
     if err != nil {
         return "", fmt.Errorf("error adding lease: %v", err)
     }
+
     return "", nil
 }
 
@@ -924,3 +993,34 @@ func getOutboundIP() (net.IP, error) {
     return localAddr.IP, nil
 }
 
+
+// Kubernetes related 
+func queryNodeMetrics(ctx context.Context, fetcher *k8s.MetricsFetcher, promNamespace, promService string) error {
+	fmt.Println("=== Node CPU Usage ===")
+	cpuResponse, err := fetcher.QueryNodeCPU(ctx, promNamespace, promService)
+	if err != nil {
+		return fmt.Errorf("failed to query node CPU: %w", err)
+	}
+
+	for _, result := range cpuResponse.Data.Result {
+		instance := result.Metric["instance"]
+		if len(result.Value) >= 2 {
+			fmt.Printf("Node: %s, CPU Usage: %.2f%%\n", instance, result.Value[1])
+		}
+	}
+
+	fmt.Println("=== Node Memory Usage ===")
+	memResponse, err := fetcher.QueryNodeMemory(ctx, promNamespace, promService)
+	if err != nil {
+		return fmt.Errorf("failed to query node memory: %w", err)
+	}
+
+	for _, result := range memResponse.Data.Result {
+		instance := result.Metric["instance"]
+		if len(result.Value) >= 2 {
+			fmt.Printf("Node: %s, Memory Usage: %.2f%%\n", instance, result.Value[1])
+		}
+	}
+
+	return nil
+}

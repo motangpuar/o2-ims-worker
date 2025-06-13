@@ -8,6 +8,10 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"io"
+
+	// Internals
+    "git.nnag.me/infidel/boothandler-go/internal/api"
 )
 
 // MetricTypes defines all the metric types for PXE-related operations
@@ -67,10 +71,11 @@ type Collector struct {
 	httpClient     *http.Client
 	username       string
 	password       string
+	apiClient     *api.APIClient
 }
 
 // NewCollector creates a new metrics collector
-func NewCollector(workerID, metricsURL, username, password string) *Collector {
+func NewCollector(workerID, metricsURL, username, password string, apiClient *api.APIClient ) *Collector {
 	return &Collector{
 		workerID:       workerID,
 		metricsURL:     metricsURL,
@@ -80,6 +85,7 @@ func NewCollector(workerID, metricsURL, username, password string) *Collector {
 		httpClient:     &http.Client{Timeout: 10 * time.Second},
 		username:       username,
 		password:       password,
+		apiClient:      apiClient,
 	}
 }
 
@@ -185,6 +191,8 @@ func (c *Collector) ReportMetrics() {
 		return
 	}
 
+	log.Printf("JSON Payload \n%s\n", string(jsonData))
+
 	// Create request
 	req, err := http.NewRequest("POST", c.metricsURL, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -194,7 +202,11 @@ func (c *Collector) ReportMetrics() {
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth(c.username, c.password)
+
+	authHeader := c.apiClient.GetAuthHeader()
+	//req.SetBasicAuth(c.username, c.password)
+	log.Printf("Metric Token: %s\n", authHeader)
+    req.Header.Set("Authorization", authHeader)
 
 	// Send request
 	resp, err := c.httpClient.Do(req)
@@ -202,10 +214,16 @@ func (c *Collector) ReportMetrics() {
 		log.Printf("Error sending metrics: %v", err)
 		return
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Printf("Error response from metrics API: %d", resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Malformed response body\n")
+		}
+		log.Printf("Response Body: \n%s\n", string(body))
 		return
 	}
 
@@ -224,3 +242,4 @@ func (c *Collector) GetMetricCounts() map[string]int {
 	
 	return counts
 }
+

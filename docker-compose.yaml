@@ -27,5 +27,6 @@ services:
     volumes:
       - ./assets/boot/:/var/lib/tftpboot/boot:z
       - ./pxelinux.cfg:/var/lib/tftpboot/pxelinux.cfg:z
+      - /home/infidel/.kube/config:/root/.kube/config:z
     privileged:
       - true

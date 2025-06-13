@@ -94,7 +94,8 @@ func (c *APIClient) login() error {
     return nil
 }
 
-func (c *APIClient) getAuthHeader() string {
+// Capital G so we can access the function from outside, fucking Golang XD
+func (c *APIClient) GetAuthHeader() string {
     c.mu.RLock()
     token := c.authToken
     c.mu.RUnlock()
@@ -131,7 +132,7 @@ func (c *APIClient) doRequestWithAuth(method, endpoint string, data interface{})
     }
 
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Authorization", c.getAuthHeader())
+    req.Header.Set("Authorization", c.GetAuthHeader())
 
     resp, err := c.client.Do(req)
     if err != nil {
@@ -235,7 +236,7 @@ func (c *APIClient) GetMachines() ([]Machine, error) {
     }
 
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Authorization", c.getAuthHeader())
+    req.Header.Set("Authorization", c.GetAuthHeader())
 
     resp, err := c.client.Do(req)
     if err != nil {
@@ -278,7 +279,7 @@ func (c *APIClient) GetCluster(clusterID int) (*Cluster, error) {
     }
 
     req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Authorization", c.getAuthHeader())
+    req.Header.Set("Authorization", c.GetAuthHeader())
 
     resp, err := c.client.Do(req)
     if err != nil {
