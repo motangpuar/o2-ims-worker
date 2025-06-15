@@ -34,4 +34,5 @@ RUN \
 
 #RUN mkdir -p /var/lib/tftpboot/pxelinuc.cfg/
 #COPY pxelinux.cfg/ /var/lib/tftpboot/pxelinux.cfg/
-COPY cmd/boothandler/ims-worker /usr/bin/ims-worker
+
+COPY build/ims-worker /usr/bin/ims-worker

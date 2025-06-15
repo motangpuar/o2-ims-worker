@@ -1,4 +1,4 @@
-package system
+package main
 
 import (
 	"syscall"
@@ -15,7 +15,7 @@ const (
 )
 
 // GetMemoryUsage returns memory usage information in bytes
-func GetMemoryUsage() (used float64, total float64, err error) {
+func systemGetMemoryUsage() (used float64, total float64, err error) {
 	v, err := mem.VirtualMemory()
 	if err != nil {
 		return 0, 0, err
@@ -27,7 +27,7 @@ func GetMemoryUsage() (used float64, total float64, err error) {
 }
 
 // GetCPUUsage returns CPU usage as a percentage
-func GetCPUUsage() (float64, error) {
+func systemGetCPUUsage() (float64, error) {
 	percent, err := cpu.Percent(time.Second, false)
 	if err != nil {
 		return 0, err
@@ -41,7 +41,7 @@ func GetCPUUsage() (float64, error) {
 }
 
 // GetMemoryUsageGB returns memory usage information in gigabytes
-func ManualGetMemoryUsage() (usedGB float64, totalGB float64, err error) {
+func systemManualGetMemoryUsage() (usedGB float64, totalGB float64, err error) {
 
 	var info syscall.Sysinfo_t
 	err = syscall.Sysinfo(&info)
@@ -62,7 +62,7 @@ func ManualGetMemoryUsage() (usedGB float64, totalGB float64, err error) {
 }
 
 // GetCPUUsage returns CPU usage as a percentage
-func ManualGetCPUUsage() (float64, error) {
+func systemManualGetCPUUsage() (float64, error) {
 	// Get initial CPU stats
 	idle0, total0, err := getCPUSample()
 	if err != nil {

@@ -1,4 +1,6 @@
-BINARY ?= cmd/boothandler/ims-worker
+BUILD_DIR=./build
+BINARY_NAME=ims-worker
+BINARY ?= cmd/boothandler/$(BINARY_NAME)
 
 # Default value for BUILDER
 BUILDER := $(shell if command -v podman > /dev/null 2>&1; then echo podman; \
@@ -14,8 +16,9 @@ else
 endif
 
 build: 
+	mkdir -p $(BUILD_DIR)
 	@echo "Building GO Binary..."
-	@go build -o $(BINARY) ./cmd/boothandler/
+	@go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/boothandler/
 	@echo "Binary build as $(BINARY)"
 
 IMAGE_TAG ?= ims-worker:latest

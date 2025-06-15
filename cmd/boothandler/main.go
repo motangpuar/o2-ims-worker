@@ -18,13 +18,6 @@ import (
         "os"
         "github.com/pin/tftp/v3"
         "context"
-
-        // Internals
-        "git.nnag.me/infidel/boothandler-go/internal/db"
-        "git.nnag.me/infidel/boothandler-go/internal/api"
-        "git.nnag.me/infidel/boothandler-go/internal/metrics"
-        "git.nnag.me/infidel/boothandler-go/internal/tools"
-        "git.nnag.me/infidel/boothandler-go/internal/k8s"
 )
 
 type Packet struct {
@@ -72,14 +65,14 @@ func main() {
 	flag.Parse()
 	
 	// Configure fetcher
-	opts := &k8s.Options{
+	opts := &Options{
 		KubeConfig: *kubeconfig,
 		HTTPTimeout: 30 * time.Second,
 		InsecureSkipVerify: *insecure,
 	}
 
 	// Create new metrics fetcher
-	fetcher, err := k8s.NewMetricsFetcher(opts)
+	fetcher, err := NewMetricsFetcher(opts)
 	if err != nil {
 		log.Fatalf("Failed to creat metrics fetcher: %v", err)
 	}
@@ -111,7 +104,7 @@ func main() {
 	}
 
     // Create API client with authentication
-    apiClient := api.NewAPIClient(apiURL, workerID, username, password)
+    apiClient := NewAPIClient(apiURL, workerID, username, password)
 
 
     // Get IP address
@@ -138,7 +131,7 @@ func main() {
 	authToken := apiClient.GetAuthHeader()
 	log.Printf("AuthToken: %s\n", authToken)
 
-	metricsCollector := metrics.NewCollector(workerID, metricsURL, username, password, apiClient)
+	metricsCollector := NewCollector(workerID, metricsURL, username, password, apiClient)
 	ctx := context.Background()
     // Start heartbeat goroutine
     go func() {
@@ -149,21 +142,21 @@ func main() {
             metricCounts := metricsCollector.GetMetricCounts()
 
 			// Memory Info
-			memUsed,memTotal, err := system.GetMemoryUsage()
+			memUsed,memTotal, err := systemGetMemoryUsage()
 			if err != nil {
 				fmt.Printf("Getting Memory error: %v", err)
 			}
 
 			// CPU Info
-			cpuPercentage,err := system.GetCPUUsage()
+			cpuPercentage,err := systemGetCPUUsage()
 			if err != nil {
 				fmt.Printf("Getting Memory error: %v", err)
 			}
 
 			fmt.Printf("Mem: %f Used of %f Total\n", memUsed, memTotal)
 			fmt.Printf("CPU: %f% \n", cpuPercentage)
-            status := api.WorkerStatus{
-                Services: map[string]api.ServiceStatus{
+            status := WorkerStatus{
+                Services: map[string]ServiceStatus{
                     "dhcp": {Status: "running"},
                     "tftp": {Status: "running"},
                 },
@@ -211,7 +204,7 @@ func main() {
 
 
             fmt.Printf("*****************[ K8S Stats ]*******************\n")
-			//k8sRet, err := k8s.GetKubeNode()
+			//k8sRet, err := GetKubeNode()
 			//fmt.Printf("Kubernetes status: %s", k8sRet)
 
 			switch *queryType {
@@ -513,7 +506,7 @@ func checkExistingLease(ctx context.Context, cidr string, dhcpMessage *dhcpv4.DH
     connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
     // Initialize DB handler
-    dbHandler, err := db.NewDBHandler(connStr)
+    dbHandler, err := NewDBHandler(connStr)
     if err != nil {
         return "", "", "", false, fmt.Errorf("failed to connect to database: %v", err)
     }
@@ -562,7 +555,7 @@ func checkLeases(ctx context.Context, cidr string) (bool, error) {
 
     connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
-    dbHandler, err := db.NewDBHandler(connStr)
+    dbHandler, err := NewDBHandler(connStr)
     if err != nil {
         return false, fmt.Errorf("failed to connect to database: %v", err)
     }
@@ -619,7 +612,7 @@ func (h *logHook) OnFailure(stats tftp.TransferStats, err error) {
     fmt.Printf("Transfer of %s to %s failed: %v\n", stats.Filename, stats.RemoteAddr, err)
 }
 
-func dhcpHandler(dc dhcpConfig, metricsCollector *metrics.Collector) {
+func dhcpHandler(dc dhcpConfig, metricsCollector *Collector) {
 
     laddr := &net.UDPAddr{
         IP:   net.ParseIP(dc.bindAddr),
@@ -632,9 +625,9 @@ func dhcpHandler(dc dhcpConfig, metricsCollector *metrics.Collector) {
         if metricsCollector != nil {
             switch mt := m.MessageType(); mt {
             case dhcpv4.MessageTypeDiscover:
-                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPDiscoverCount, m.ClientHWAddr.String(), "", 1)
+                metricsCollector.RecordDHCPEvent(MetricTypeDHCPDiscoverCount, m.ClientHWAddr.String(), "", 1)
             case dhcpv4.MessageTypeRequest:
-                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPRequestCount, m.ClientHWAddr.String(), "", 1)
+                metricsCollector.RecordDHCPEvent(MetricTypeDHCPRequestCount, m.ClientHWAddr.String(), "", 1)
             }
         }
         
@@ -645,9 +638,9 @@ func dhcpHandler(dc dhcpConfig, metricsCollector *metrics.Collector) {
         if metricsCollector != nil {
             switch mt := m.MessageType(); mt {
             case dhcpv4.MessageTypeDiscover:
-                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPOfferCount, m.ClientHWAddr.String(), "", 1)
+                metricsCollector.RecordDHCPEvent(MetricTypeDHCPOfferCount, m.ClientHWAddr.String(), "", 1)
             case dhcpv4.MessageTypeRequest:
-                metricsCollector.RecordDHCPEvent(metrics.MetricTypeDHCPAckCount, m.ClientHWAddr.String(), "", 1)
+                metricsCollector.RecordDHCPEvent(MetricTypeDHCPAckCount, m.ClientHWAddr.String(), "", 1)
             }
         }
     }
@@ -672,7 +665,7 @@ func dhcpHandler(dc dhcpConfig, metricsCollector *metrics.Collector) {
 
 }
 
-func tftpHandler(tc tftpConfig, metricsCollector *metrics.Collector) {
+func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
 	// Log existing hook
 	originalHook := &logHook{}
 
@@ -682,7 +675,7 @@ func tftpHandler(tc tftpConfig, metricsCollector *metrics.Collector) {
     }
     
 	// Create TFTP metrics hook
-	metricsHook := metrics.NewTFTPMetricsHook(metricsCollector, tc.rootDir)
+	metricsHook := NewTFTPMetricsHook(metricsCollector, tc.rootDir)
 
     // Set TFTP read callback with root directory
     readHandler := metricsHook.ReadHandler(func(filename string, rf io.ReaderFrom) error {
@@ -738,7 +731,7 @@ func tftpHandler(tc tftpConfig, metricsCollector *metrics.Collector) {
         log.Printf("TFTP SUCCESS: %d bytes sent for %s in %v", n, filename, duration)
         
         // Call the metrics hook's success callback directly
-        metricsLogHook := metrics.NewMetricsLogHook(metricsCollector, originalHook)
+        metricsLogHook := NewMetricsLogHook(metricsCollector, originalHook)
         metricsLogHook.OnSuccess(clientIP, filename, n, duration)
         
         // Invoke the original logHook's OnSuccess
@@ -834,11 +827,11 @@ func tftpHandler(tc tftpConfig, metricsCollector *metrics.Collector) {
     }
 }
 
-func updateDB(machine api.Machine)(bool, error){
+func updateDB(machine Machine)(bool, error){
     connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
     // Initialize DB handler
-    dbHandler, err := db.NewDBHandler(connStr)
+    dbHandler, err := NewDBHandler(connStr)
     if err != nil {
         return false, fmt.Errorf("failed to connect to database: %v", err)
     }
@@ -846,7 +839,7 @@ func updateDB(machine api.Machine)(bool, error){
 
     ctx := context.Background()
 
-    lease := db.Lease{
+    lease := Lease{
         IPAddress:        machine.IP,
         MACAddress:       machine.MAC,
         Hostname:         machine.Hostname,
@@ -890,7 +883,7 @@ func invokeDB(cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, error) {
     connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
 
     // Initialize DB handler
-    dbHandler, err := db.NewDBHandler(connStr)
+    dbHandler, err := NewDBHandler(connStr)
     if err != nil {
         return "", "", fmt.Errorf("failed to connect to database: %v", err)
     }
@@ -932,7 +925,7 @@ func invokeDB(cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, error) {
         hostname = "pxe-" + dhcpMessage.ClientHWAddr.String()
     }
     
-    lease := db.Lease{
+    lease := Lease{
         IPAddress:        offerIP,
         MACAddress:       dhcpMessage.ClientHWAddr.String(),
         Hostname:         hostname,
@@ -956,7 +949,7 @@ func invokeDB(cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, error) {
 
 func invokeDBUpdate(connStr string, macAddress string)(string,error){
     // Initialize DB handler
-    dbHandler, err := db.NewDBHandler(connStr)
+    dbHandler, err := NewDBHandler(connStr)
     if err != nil {
         return "", fmt.Errorf("failed to connect to database: %v", err)
     }
@@ -964,7 +957,7 @@ func invokeDBUpdate(connStr string, macAddress string)(string,error){
 
     ctx := context.Background()
 
-    lease := db.Lease{
+    lease := Lease{
         MACAddress:       macAddress,
         LeaseStart:       time.Now(),
         LeaseEnd:         time.Now().Add(12 * time.Hour),
@@ -995,7 +988,7 @@ func getOutboundIP() (net.IP, error) {
 
 
 // Kubernetes related 
-func queryNodeMetrics(ctx context.Context, fetcher *k8s.MetricsFetcher, promNamespace, promService string) error {
+func queryNodeMetrics(ctx context.Context, fetcher *MetricsFetcher, promNamespace, promService string) error {
 	fmt.Println("=== Node CPU Usage ===")
 	cpuResponse, err := fetcher.QueryNodeCPU(ctx, promNamespace, promService)
 	if err != nil {

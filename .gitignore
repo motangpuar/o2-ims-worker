@@ -1,2 +1,8 @@
 cmd/boothandler/ims-worker
 assets/
+
+go.mod
+go.sum
+go.work
+go.work.sum
+build/

@@ -1,5 +1,5 @@
 // api/client.go
-package api
+package main
 
 import (
     "bytes"
