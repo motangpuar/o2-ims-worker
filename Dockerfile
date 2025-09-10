@@ -9,11 +9,32 @@ RUN apk add --no-cache \
     dnsmasq \
     ca-certificates \
     gcompat \
-    wget
+    wget \
+    make \
+    gcc \
+    musl-dev \
+    git
+
+# Install Go 1.24.0 manually
+RUN wget https://go.dev/dl/go1.24.0.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.24.0.linux-amd64.tar.gz && \
+    rm go1.24.0.linux-amd64.tar.gz
+
+# Set Go environment
+ENV PATH=/usr/local/go/bin:$PATH
+ENV GOPATH=/go
+ENV CGO_ENABLED=1
+
 
 ENV MEMTEST_VERSION 5.31b
 ENV SYSLINUX_VERSION 6.03
 ENV TEMP_SYSLINUX_PATH /tmp/syslinux-"$SYSLINUX_VERSION"
+
+WORKDIR /tmp/ims-worker
+COPY . .
+RUN make build
+RUN cp build/ims-worker /usr/bin/ims-worker
+
 
 WORKDIR /tmp
 RUN \
@@ -35,4 +56,4 @@ RUN \
 #RUN mkdir -p /var/lib/tftpboot/pxelinuc.cfg/
 #COPY pxelinux.cfg/ /var/lib/tftpboot/pxelinux.cfg/
 
-COPY build/ims-worker /usr/bin/ims-worker
+#COPY build/ims-worker /usr/bin/ims-worker
