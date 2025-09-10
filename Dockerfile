@@ -32,7 +32,7 @@ ENV TEMP_SYSLINUX_PATH /tmp/syslinux-"$SYSLINUX_VERSION"
 
 WORKDIR /tmp/ims-worker
 COPY . .
-RUN make build
+RUN go mod init && make build
 RUN cp build/ims-worker /usr/bin/ims-worker
 
 
