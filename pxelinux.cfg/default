@@ -36,10 +36,9 @@ prompt 0
 
 label 
     menu label CentOS Stream 9 Minimal
-    KERNEL boot/rhel/9.2/images/pxeboot/vmlinuz
-    INITRD boot/rhel/9.2/images/pxeboot/initrd.img
-    #APPEND ksdevice=eth0 load_ramdisk=1 inst.ks=http://10.80.1.1/boot/rhel/rhel9.5/ks.cfg ip=eth0:dhcp
-    APPEND inst.ks=http://192.168.8.75:3001/isos/kickstart/ks-minimal.cfg ip=dhcp inst.repo=http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/ inst.stage2=http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/
+    KERNEL boot/centos/stream9/vmlinuz
+    INITRD boot/centos/stream9/initrd.img
+    APPEND inst.ks=http://192.168.8.75:3001/isos/kickstart/ks-minimal.cfg ip=dhcp inst.repo=http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/ 
 
 label 
     menu label RHEL-9.2
