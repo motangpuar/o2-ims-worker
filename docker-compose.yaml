@@ -24,9 +24,13 @@ services:
     command: "/usr/bin/ims-worker"
     env_file: ".env"
     network_mode: host
+    environment:
+      - IMS_API=http://10.1.0.42:8080/
     volumes:
+      # Uncomment this to mount form build path
+      - ./build/ims-worker:/usr/bin/ims-worker:z
       - ./assets/boot/:/var/lib/tftpboot/boot:z
       - ./pxelinux.cfg:/var/lib/tftpboot/pxelinux.cfg:z
-      - /home/infidel/.kube/config:/root/.kube/config:z
+      - /root/.kube/config:/root/.kube/config:z
     privileged:
       - true

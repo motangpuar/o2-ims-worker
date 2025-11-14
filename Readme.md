@@ -15,14 +15,14 @@ Any programming language we choose, they must have the following features (prefe
 - Argument Handler
 
 
-### GO
+## GO
 
 - DHCP Server: github.com/insomniacslk/dhcp/dhcpv4
 - PXE Server: ...
 - HTTP Server: ...
 - TFTP Server: ...
 
-#### How To
+## Development Testing
 
 1. Install golang at fedora
 
@@ -33,7 +33,35 @@ Any programming language we choose, they must have the following features (prefe
 2. Environment setup
 
     - The container need the following ports (67,69,514). Host privilege is a must.
-    - 
+    -
+    -
+3. Build Local and load binary to using docker-compose
+
+```
+# Download depencies
+go mod tidy
+# Build project
+go build
+
+```
+
+4. Uncomment the following line 
+
+```
+    volumes:
+        - /build/ims-worker:/usr/bin/ims-worker:z
+```
+
+5. Start the service usinge `podman-compose up`
+
+
+## Production
+
+1. Build image
+
+```
+make image
+```
 
 
 

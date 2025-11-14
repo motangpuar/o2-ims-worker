@@ -31,18 +31,17 @@ CREATE TABLE leases (
 
 -- Sample data
 INSERT INTO ip_pools (cidr, gateway, description) VALUES
+('192.168.8.0/24', '192.168.8.103', 'BMW  Pool'),
 ('192.168.1.0/24', '192.168.1.1', 'Default Pool'),
 ('10.0.0.0/16', '10.0.0.1', 'Corporate Pool'),
-('10.70.1.0/24', '10.70.1.1', 'BMW Pool'),
-('10.80.1.0/24', '10.80.1.1', 'NUC Pool');
 
--- INSERT INTO leases (
---     ip_address, mac_address, hostname, lease_start, lease_end,
---     binding_state, last_transaction, next_binding_state, bootfile_url,
---     tftp_server, ip_pool_id
--- ) VALUES
--- ('10.70.1.2', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
---  'inactive', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
+INSERT INTO leases (
+    ip_address, mac_address, hostname, lease_start, lease_end,
+    binding_state, last_transaction, next_binding_state, bootfile_url,
+    tftp_server, ip_pool_id
+) VALUES
+('192.168.8.53', 'ac:1f:6b:40:04:b6', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
+ 'inactive', NOW(), 'released', '/path/to/bootfile', '192.168.8.103', 1);
 -- ('10.70.1.3', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',
 --  'inactive', NOW(), 'released', '/path/to/bootfile', '10.70.1.1', 1),
 -- ('10.70.1.4', '00:11:22:33:44:55', 'test-host', NOW(), NOW() + INTERVAL '1 hour',

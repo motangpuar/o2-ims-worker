@@ -18,12 +18,14 @@ endif
 build: 
 	mkdir -p $(BUILD_DIR)
 	@echo "Building GO Binary..."
+	@go mod tidy
 	@go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/boothandler/
 	@echo "Binary build as $(BINARY)"
 
 IMAGE_TAG ?= ims-worker:latest
 # Example target using BUILDER
-image: $(BINARY) check-builder
+#image: $(BINARY) check-builder
+image: check-builder
 	@echo "Building container image with $(BUILDER)..."
 	$(BUILDER) build -t $(IMAGE_TAG) .
 

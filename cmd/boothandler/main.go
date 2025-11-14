@@ -55,10 +55,10 @@ func main() {
 
 	var (
 		kubeconfig = flag.String("Kubeconfig", "", "/root/.kube/config")
-		prometheusNamespace = flag.String("prom-namespace", "observability", "namespace where prometheus is deployed")
-		prometheusService = flag.String("prom-service","prometheus-operated","Prometheus service name")
+		//prometheusNamespace = flag.String("prom-namespace", "observability", "namespace where prometheus is deployed")
+		//prometheusService = flag.String("prom-service","prometheus-operated","Prometheus service name")
 		//targetNamespace = flag.String("namespace","default","namespace to query metrics for")
-		queryType = flag.String("query","nodes","type of query: nodes, pods, custom")
+		//queryType = flag.String("query","nodes","type of query: nodes, pods, custom")
 		//customQuery = flag.String("custom-qyery", "", "custom PromQL query")
 		insecure = flag.Bool("insecure", false, "skip TLS Verification")
 	)
@@ -132,7 +132,7 @@ func main() {
 	log.Printf("AuthToken: %s\n", authToken)
 
 	metricsCollector := NewCollector(workerID, metricsURL, username, password, apiClient)
-	ctx := context.Background()
+	//ctx := context.Background()
     // Start heartbeat goroutine
     go func() {
         for {
@@ -203,21 +203,21 @@ func main() {
             metricsCollector.ReportMetrics()
 
 
-            fmt.Printf("*****************[ K8S Stats ]*******************\n")
-			//k8sRet, err := GetKubeNode()
-			//fmt.Printf("Kubernetes status: %s", k8sRet)
+            // fmt.Printf("*****************[ K8S Stats ]*******************\n")
+	    //     	//k8sRet, err := GetKubeNode()
+	    //     	//fmt.Printf("Kubernetes status: %s", k8sRet)
 
-			switch *queryType {
-			case "nodes": 
-				if err := queryNodeMetrics(ctx, fetcher, *prometheusNamespace, *prometheusService); err != nil {
-					log.Fatalf("Failed to query node metrics: %v", err)
-				}
-			}
+	    //     	switch *queryType {
+	    //     	case "nodes": 
+	    //     		if err := queryNodeMetrics(ctx, fetcher, *prometheusNamespace, *prometheusService); err != nil {
+	    //     			log.Fatalf("Failed to query node metrics: %v", err)
+	    //     		}
+	    //     	}
 
-			fmt.Printf("*************************************************\n")
+	    //     	fmt.Printf("*************************************************\n")
 
-            time.Sleep(10 * time.Second)
-            fmt.Printf("---------------------------------------------\n")
+            // time.Sleep(10 * time.Second)
+            // fmt.Printf("---------------------------------------------\n")
         }
     }()
 
@@ -227,7 +227,7 @@ func main() {
 
     // Set up the server IP - this should be your actual server IP
     //serverIP := ip.String() // Using outbound IP by default
-    serverIP := "10.80.1.1"
+    serverIP := "192.168.8.103"
 
 
     if err != nil {
@@ -314,7 +314,7 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
     }
 
     // Get the fixed server IP (should be set in config)
-    serverIP := net.ParseIP("10.80.1.1")
+    serverIP := net.ParseIP("192.168.8.103")
 
     if serverIP == nil {
         log.Printf("Invalid server IP: %s", config.serverIP)
@@ -345,7 +345,7 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
     } else {
 
         // Update DB When found: Lease Time
-        handlerConn := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
+        handlerConn := "postgres://nnag:password@localhost:54321/dhcpdb?sslmode=disable"
         updateRet, dbStatus := invokeDBUpdate(handlerConn, m.ClientHWAddr.String())
 
         if dbStatus != nil {
@@ -503,7 +503,7 @@ func isLegacyPXEClient(m *dhcpv4.DHCPv4) bool {
 
 // checkExistingLease checks if a MAC already has a lease and returns it
 func checkExistingLease(ctx context.Context, cidr string, dhcpMessage *dhcpv4.DHCPv4) (string, string, string, bool, error) {
-    connStr := "postgres://nnag:password@10.70.1.1:54321/dhcpdb?sslmode=disable"
+    connStr := "postgres://nnag:password@localhost:54321/dhcpdb?sslmode=disable"
 
     // Initialize DB handler
     dbHandler, err := NewDBHandler(connStr)
@@ -646,7 +646,8 @@ func dhcpHandler(dc dhcpConfig, metricsCollector *Collector) {
     }
 
     // Rest of your original code
-    interfaceName := "enp0s20f0u4"
+    //interfaceName := "enp0s20f0u4"
+    interfaceName := "enp2s0"
     if dc.bindInterface != "" {
         interfaceName = dc.bindInterface
     }
@@ -849,7 +850,7 @@ func updateDB(machine Machine)(bool, error){
         LastTransaction:  time.Now(),
         NextBindingState: "expired",
         BootfileURL:      "/pxelinux.0",
-        TFTPServer:       "10.80.1.1" ,
+        TFTPServer:       "192.168.8.103" ,
         IPPoolID:         1,
     }
 
