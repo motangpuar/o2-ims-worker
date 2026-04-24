@@ -1,69 +1,98 @@
-# O2 IMS WORKER
+# o2-ims-worker
 
-## What Language?
+A bare metal provisioning agent that bridges the O-RAN O2 IMS with physical
+infrastructure. It registers with the IMS API, pulls machine inventory by
+cluster, and runs a DHCP/PXE/TFTP stack to boot those machines. Resource
+metrics from the Kubernetes cluster are collected via Prometheus and reported
+back to the IMS.
 
-Need to decide what language and framework for this project:
-- GO: Tinkerbell implementation shows, how its done.
-- Python: Easier implementation, but no clear information regarding its current supported features.
+## What it does
 
-Any programming language we choose, they must have the following features (preferably not to be recreated):
+On startup the worker registers itself with the IMS API using its hostname
+and outbound IP. It then runs three concurrent services:
 
-- DHCP Server
-- PXE Server
-- Netboot features
-- TFTP features
-- Argument Handler
+- DHCP server that issues leases only to MAC addresses registered in the IMS.
+  Unregistered machines are rejected. PXE boot options are set automatically
+  for registered clients.
+- TFTP server that serves the PXE boot files from a configurable root
+  directory.
+- Heartbeat loop that reports service status, system memory and CPU usage, and
+  DHCP/TFTP metric counts back to the IMS API every 30 seconds.
 
+The IMS is the single source of truth for which machines exist. The worker
+syncs machine state from the IMS and keeps lease records in a local PostgreSQL
+database.
 
-## GO
+## Requirements
 
-- DHCP Server: github.com/insomniacslk/dhcp/dhcpv4
-- PXE Server: ...
-- HTTP Server: ...
-- TFTP Server: ...
+- Go 1.21+
+- PostgreSQL (for DHCP lease state)
+- Host network privileges (ports 67, 69)
+- A running O2 IMS API instance
+- PXE boot files at `/var/lib/tftpboot/`
 
-## Development Testing
+## Environment variables
 
-1. Install golang at fedora
+| Variable | Description |
+|---|---|
+| `IMS_API_URL` | Base URL of the O2 IMS API |
+| `IMS_API_USERNAME` | IMS API username |
+| `IMS_API_PASSWORD` | IMS API password |
+| `IMS_METRICS_URL` | Metrics endpoint (defaults to `IMS_API_URL/api/clusters/6/update_metrics/`) |
+| `KUBECONFIG` | Path to kubeconfig for Prometheus queries (optional) |
 
-    ```bash
-    sudo dnf install golang
-    ```
+## Development
 
-2. Environment setup
+Install Go on Fedora:
 
-    - The container need the following ports (67,69,514). Host privilege is a must.
-    -
-    -
-3. Build Local and load binary to using docker-compose
-
+```bash
+sudo dnf install golang
 ```
-# Download depencies
+
+Build and run locally:
+
+```bash
+# Download dependencies
 go mod tidy
-# Build project
-go build
 
+# Build binary
+go build ./cmd/boothandler/...
+
+# Run (requires host network and PostgreSQL)
+IMS_API_URL=http://localhost:8000 \
+IMS_API_USERNAME=admin \
+IMS_API_PASSWORD=secret \
+./boothandler
 ```
 
-4. Uncomment the following line 
+Run with Docker Compose (mounts local binary):
 
+```bash
+# Build binary first
+go build -o build/ims-worker ./cmd/boothandler/...
+
+# Uncomment the volume mount in docker-compose.yaml:
+# volumes:
+#   - ./build/ims-worker:/usr/bin/ims-worker:z
+
+podman-compose up
 ```
-    volumes:
-        - /build/ims-worker:/usr/bin/ims-worker:z
-```
 
-5. Start the service usinge `podman-compose up`
-
+The container requires privileged mode for DHCP (port 67) and TFTP (port 69).
 
 ## Production
 
-1. Build image
+Build the image:
 
-```
+```bash
 make image
 ```
 
+The container expects all environment variables to be set at runtime and a
+TFTP root directory mounted at `/var/lib/tftpboot/` containing at minimum
+`pxelinux.0`.
 
+## Stack
 
-
-
+Go, github.com/insomniacslk/dhcp, github.com/pin/tftp, k8s client-go,
+pgxpool (PostgreSQL), gopsutil
