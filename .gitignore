@@ -5,3 +5,7 @@ go.sum
 go.work
 go.work.sum
 build/
+.aider*
+.env
+.*.sw[a-p]
+*.sw[a-p]
