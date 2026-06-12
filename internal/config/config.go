@@ -18,6 +18,7 @@ type DHCPConfig struct {
     mode          string
     bindAddr      string
     bindInterface string
+	bindPort	  int
     tftpIP        string
     tftpPort      int
     nextServerIP  string // Add server IP for consistent responses
@@ -98,6 +99,7 @@ func Gather() *Master {
 		enabled: true,
 		mode: "", // Undefiend will be removed 
 		bindAddr: "0.0.0.0",
+		bindPort: 67,
 		bindInterface: "eth0",
 		tftpIP: "192.168.1.1", // Dummy endpoint for TFTP
 		tftpPort: 69,
@@ -119,6 +121,13 @@ func Gather() *Master {
 	if val := os.Getenv("DHCP_BIND_ADDRESS"); val != "" {
 		dhcpConfig.bindAddr = val
 	}
+
+	if val := os.Getenv("DHCP_BIND_PORT"); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			dhcpConfig.bindPort = intVal
+		}
+	}
+
 	if val := os.Getenv("DHCP_TFTP_IP"); val != "" {
 		dhcpConfig.tftpIP = val
 	}
@@ -157,6 +166,7 @@ func (d *DHCPConfig) BindAddr() string { return d.bindAddr }
 func (d *DHCPConfig) Enabled() bool { return d.enabled }
 func (d *DHCPConfig) Mode() string { return d.mode }         
 func (d *DHCPConfig) BindInterface() string { return d.bindInterface }
+func (d *DHCPConfig) BindPort() int { return d.bindPort }
 func (d *DHCPConfig) TFTPIP() string { return d.tftpIP }
 func (d *DHCPConfig) TFTPPort() int { return d.tftpPort }
 func (d *DHCPConfig) NextServe() string { return d.nextServerIP }

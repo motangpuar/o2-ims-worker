@@ -684,18 +684,17 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
 
 	//
     // Ensure TFTP root directory exists
-	//
     if _, err := os.Stat(tc.rootDir); os.IsNotExist(err) {
         log.Fatalf("TFTP root directory does not exist: %s", tc.rootDir)
     }
     
+	//
 	// Create TFTP metrics hook
 	metricsHook := NewTFTPMetricsHook(metricsCollector, tc.rootDir)
 
     // Set TFTP read callback with root directory
     readHandler := metricsHook.ReadHandler(func(filename string, rf io.ReaderFrom) error {
         // Your original read handler logic
-        
         // Normalize path by removing leading slash if present
         if filename[0] == '/' {
             filename = filename[1:]
@@ -703,7 +702,6 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
         
         // Prepend root directory to filename
         fullPath := filepath.Join(tc.rootDir, filename)
-        
         log.Printf("TFTP READ REQUEST: Client requested file: %s (full path: %s)", filename, fullPath)
         
         // Extract client IP for logging
@@ -748,7 +746,8 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
         // Call the metrics hook's success callback directly
         metricsLogHook := NewMetricsLogHook(metricsCollector, originalHook)
         metricsLogHook.OnSuccess(clientIP, filename, n, duration)
-        
+
+    	//    
         // Invoke the original logHook's OnSuccess
         // originalHook.OnSuccess(transferStats{
         //     Filename: filename,
@@ -758,6 +757,7 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
 		//
         
         return nil
+
     })
     
     // Set TFTP write callback with root directory

@@ -1,6 +1,5 @@
 package tftp
 
-import "fmt"
 import "log"
 import "os"
 import "path/filepath"
@@ -50,7 +49,7 @@ func readHandler(filename string, rf io.ReaderFrom) error {
 	file, err := os.Open("/tmp/tftp/"+filename)
 
 	if err != nil {
-		log.Println("Failed to Open File %s", filename)
+		log.Println("Failed to Open File:", filename)
 	}
 
 	// Deffer
@@ -63,9 +62,9 @@ func readHandler(filename string, rf io.ReaderFrom) error {
 // Method of Engine to Start TFTP
 // Service
 func (e *Engine) Start() {
-	fmt.Println("[TFTP Realm]--------------<*>")
-	fmt.Println(e.cfg.BindAddr())
-	fmt.Println(e.cfg.BindPort())
+	log.Println("[TFTP Realm]--------------<*>")
+	log.Println(e.cfg.BindAddr())
+	log.Println(e.cfg.BindPort())
 
 	rootDir := e.cfg.RootDir()
 	tftpAddr := e.cfg.BindAddr()
@@ -84,7 +83,7 @@ func (e *Engine) Start() {
 
 	fullPath := filepath.Join(rootDir, filename)
 
-	fmt.Println(fullPath)
+	log.Println(fullPath)
 
 	// Start TFTP Hook
 	s := tftp.NewServer(readHandler, nil)

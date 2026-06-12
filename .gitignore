@@ -9,3 +9,4 @@ build/
 .env
 .*.sw[a-p]
 *.sw[a-p]
+downloaded_dump.bin
