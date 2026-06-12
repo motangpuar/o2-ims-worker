@@ -14,7 +14,7 @@ func main()  {
 
 	tftpCfgPtr := cfg.TFTP
 	dhcpCfgPtr := cfg.DHCP
-
+//----------------------------------------------
 	fmt.Println("[DHCP].........")
 	fmt.Println(dhcpCfgPtr.BindAddr())
 	fmt.Println(dhcpCfgPtr.Enabled())
@@ -25,7 +25,7 @@ func main()  {
 	fmt.Println(dhcpCfgPtr.NextServe())
 	fmt.Println(dhcpCfgPtr.BootFilePath())
 	fmt.Println()
-
+//----------------------------------------------
 	fmt.Println("[TFTP].........")
 	fmt.Println(tftpCfgPtr.BindAddr())
 	fmt.Println(tftpCfgPtr.Enabled())

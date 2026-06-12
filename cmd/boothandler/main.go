@@ -682,7 +682,9 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
 	// Log existing hook
 	originalHook := &logHook{}
 
+	//
     // Ensure TFTP root directory exists
+	//
     if _, err := os.Stat(tc.rootDir); os.IsNotExist(err) {
         log.Fatalf("TFTP root directory does not exist: %s", tc.rootDir)
     }
@@ -753,6 +755,7 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
         //     RemoteAddr: remoteAddr,
         //     BytesTransferred: n,
         // })
+		//
         
         return nil
     })

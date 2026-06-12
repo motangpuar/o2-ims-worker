@@ -27,7 +27,7 @@ func NewEngine(r Reader) *Engine {
 }
 
 func (e *Engine) Start() {
-	fmt.Println("[DHCP Realm]--------------")
+	fmt.Println("[DHCP Realm]--------------<*>")
 	fmt.Println(e.cfg.BindAddr())
 	fmt.Println(e.cfg.Enabled())
 }
