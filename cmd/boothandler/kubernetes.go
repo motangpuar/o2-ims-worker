@@ -90,6 +90,8 @@ func GetKubeNode() (string, error) {
 		// Examples for error handling:
 		// - Use helper functions like e.g. errors.IsNotFound()
 		// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
+		//
+
 		namespace := "default"
 		pod := "example-xxxxx"
 		_, err = clientset.CoreV1().Pods(namespace).Get(context.TODO(), pod, metav1.GetOptions{})
@@ -165,7 +167,7 @@ func getKubeConfig(kubeconfigPath string) (*rest.Config, error){
 	return config, nil
 }
 
-// FetcMetrics via prometheus service directly
+// FetchMetrics via prometheus service directly
 
 func (mf *MetricsFetcher) FetchMetricsViaService(ctx context.Context, config MetricsConfig) (*PrometheusResponse, error) {
 	// Get prometheus service

@@ -1,7 +1,14 @@
 cmd/boothandler/ims-worker
 assets/
+bin/
+var/
 
 go.sum
 go.work
 go.work.sum
 build/
+.aider*
+.env
+.*.sw[a-p]
+*.sw[a-p]
+downloaded_dump.bin

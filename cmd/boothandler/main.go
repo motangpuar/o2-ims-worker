@@ -7,17 +7,15 @@ import (
         "log"
         "github.com/insomniacslk/dhcp/dhcpv4"
         "github.com/insomniacslk/dhcp/dhcpv4/server4"
-
         "io/ioutil"
         "path/filepath"
         "strings"
 		"flag"
-
-        // TFTP
         "io"
         "os"
         "github.com/pin/tftp/v3"
         "context"
+		"strconv"
 )
 
 type Packet struct {
@@ -38,7 +36,7 @@ type dhcpConfig struct {
     bindInterface string
     tftpIP        string
     tftpPort      int
-    serverIP      string  // Add server IP for consistent responses
+    serverIP      string // Add server IP for consistent responses
     bootFilePath  string // Add boot file path configuration
 }
 
@@ -50,17 +48,21 @@ type tftpConfig struct {
     rootDir   string // Add TFTP root directory
 }
 
-func main() {
-	// Kubernetes Related declaration
 
+
+func main() {
+
+	// Kubernetes Related declaration
 	var (
 		kubeconfig = flag.String("Kubeconfig", "", "/root/.kube/config")
+		insecure = flag.Bool("insecure", false, "skip TLS Verification")
+		//----------------------------------------------------------------------------------------------------------------
 		//prometheusNamespace = flag.String("prom-namespace", "observability", "namespace where prometheus is deployed")
 		//prometheusService = flag.String("prom-service","prometheus-operated","Prometheus service name")
 		//targetNamespace = flag.String("namespace","default","namespace to query metrics for")
 		//queryType = flag.String("query","nodes","type of query: nodes, pods, custom")
 		//customQuery = flag.String("custom-qyery", "", "custom PromQL query")
-		insecure = flag.Bool("insecure", false, "skip TLS Verification")
+		//----------------------------------------------------------------------------------------------------------------
 	)
 	flag.Parse()
 	
@@ -79,8 +81,7 @@ func main() {
 
 	defer fetcher.Close()
 
-
-	//----------------------------------------------------------------------
+    //----------------------------------------------------------------------
     // Get worker ID (could be hostname or container ID)
     workerID, err := os.Hostname()
     if err != nil {
@@ -92,20 +93,30 @@ func main() {
     password := os.Getenv("IMS_API_PASSWORD")
     apiURL := os.Getenv("IMS_API_URL")
 
-    if username == "" || password == "" || apiURL == "" {
-        log.Fatal("IMS_API_USERNAME, IMS_API_PASSWORD and IMS_API_URL environment variables are required")
-    }
+	envIMSMode := os.Getenv("IMS_MODE")
+	enableIMSMode, err := strconv.ParseBool(envIMSMode)
+
+	if err != nil {
+		enableIMSMode = false
+	}
+
+	if enableIMSMode == true {
+    	if username == "" || password == "" || apiURL == "" {
+    	    log.Fatal("IMS_API_USERNAME, IMS_API_PASSWORD and IMS_API_URL environment variables are required")
+    	}
+	}
 
 	// New: Get metrics URL from environment or use default
 	metricsURL := os.Getenv("IMS_METRICS_URL")
+	metricsID := 0
 	if metricsURL == "" {
 		//metricsURL = apiURL + "/api/machines/21/update_metrics/" // Default endpoint
-		metricsURL = apiURL + "/api/clusters/6/update_metrics/" // Default endpoint
+		// metrics ID should be dynamic dictacted from the IMS
+		metricsURL = apiURL + "/api/clusters/" + strconv.Itoa(metricsID) + "/update_metrics/" // Default endpoint
 	}
 
     // Create API client with authentication
     apiClient := NewAPIClient(apiURL, workerID, username, password)
-
 
     // Get IP address
     ip, err := getOutboundIP()
@@ -114,22 +125,24 @@ func main() {
     }
 
     // Register worker with retries
-    maxRetries := 5
-    for i := 0; i < maxRetries; i++ {
-        if err := apiClient.Register(ip.String()); err != nil {
-            if i == maxRetries-1 {
-                log.Fatalf("Failed to register worker after %d attempts: %v", maxRetries, err)
-            }
-            log.Printf("Registration attempt %d failed: %v, retrying...", i+1, err)
-            time.Sleep(time.Second * time.Duration(i+1))
-            continue
-        }
-        break
-    }
+	if enableIMSMode == true {
+    	maxRetries := 5
+    	for i := 0; i < maxRetries; i++ {
+    	    if err := apiClient.Register(ip.String()); err != nil {
+    	        if i == maxRetries-1 {
+    	            log.Fatalf("Failed to register worker after %d attempts: %v", maxRetries, err)
+    	        }
+    	        log.Printf("Registration attempt %d failed: %v, retrying...", i+1, err)
+    	        time.Sleep(time.Second * time.Duration(i+1))
+    	        continue
+    	    }
+    	    break
+    	}
 
-    log.Printf("Worker registered successfully with ID: %s", workerID)
-	authToken := apiClient.GetAuthHeader()
-	log.Printf("AuthToken: %s\n", authToken)
+    	log.Printf("Worker registered successfully with ID: %s", workerID)
+		authToken := apiClient.GetAuthHeader()
+		log.Printf("AuthToken: %s\n", authToken)
+	}
 
 	metricsCollector := NewCollector(workerID, metricsURL, username, password, apiClient)
 	//ctx := context.Background()
@@ -137,7 +150,6 @@ func main() {
     go func() {
         for {
 			// New: Create metrics collector
-
             // NEW: Add metrics to heartbeat
             metricCounts := metricsCollector.GetMetricCounts()
 
@@ -153,7 +165,7 @@ func main() {
 				fmt.Printf("Getting Memory error: %v", err)
 			}
 
-			fmt.Printf("Mem: %f Used of %f Total\n", memUsed, memTotal)
+			fmt.Printf("\nMem: %f Used of %f Total\n", memUsed, memTotal)
 			fmt.Printf("CPU: %f% \n", cpuPercentage)
             status := WorkerStatus{
                 Services: map[string]ServiceStatus{
@@ -174,34 +186,34 @@ func main() {
 			for metricType, count := range metricCounts {
 				status.Metrics[metricType] = count
 			}
+			if enableIMSMode == true {
+            	if err := apiClient.SendHeartbeat(status); err != nil {
+            	    log.Printf("Failed to send heartbeat: %v", err)
+            	}
 
-            if err := apiClient.SendHeartbeat(status); err != nil {
-                log.Printf("Failed to send heartbeat: %v", err)
-            }
+            	machines, err := apiClient.GetMachines()
+            	if err != nil {
+            	    log.Printf("Failed to get machines: %v", err)
+            	    continue
+            	}
+            	for _, machine := range machines {
+					fmt.Printf("ID: %d, Machine: %s (IP: %s, Cluster: %s, Status: %s)\n", 
+            	        machine.ID, machine.Hostname, machine.IP, machine.ClusterName, machine.Status)
 
-            machines, err := apiClient.GetMachines()
-            if err != nil {
-                log.Printf("Failed to get machines: %v", err)
-                continue
-            }
+            	    // NEW: Record metric for machine processing
+            	    metricsCollector.RecordMetric("pxe.machine.processed", 1, machine.MAC, machine.IP, map[string]string{
+            	        "hostname": machine.Hostname,
+            	        "status": machine.Status,
+            	    })
+            	    updateDB(machine)
+
+            	}
+			}
 
 
-            for _, machine := range machines {
-				fmt.Printf("ID: %d, Machine: %s (IP: %s, Cluster: %s, Status: %s)\n", 
-                    machine.ID, machine.Hostname, machine.IP, machine.ClusterName, machine.Status)
-
-                // NEW: Record metric for machine processing
-                metricsCollector.RecordMetric("pxe.machine.processed", 1, machine.MAC, machine.IP, map[string]string{
-                    "hostname": machine.Hostname,
-                    "status": machine.Status,
-                })
-                updateDB(machine)
-
-            }
 
             // NEW: Ensure we report any buffered metrics
             metricsCollector.ReportMetrics()
-
 
             // fmt.Printf("*****************[ K8S Stats ]*******************\n")
 	    //     	//k8sRet, err := GetKubeNode()
@@ -227,16 +239,14 @@ func main() {
 
     // Set up the server IP - this should be your actual server IP
     //serverIP := ip.String() // Using outbound IP by default
-    serverIP := "192.168.8.103"
 
-
-    if err != nil {
-        log.Fatalf("Failed to get IP address: %v", err)
-    }
-    log.Printf("Server detected IP: %s", serverIP)
+    // if err != nil {
+    //     log.Fatalf("Failed to get IP address: %v", err)
+    // }
+    // log.Printf("Server detected IP: %s", serverIP)
     
     // Set up the configurations
-    tftpRootDir := "/var/lib/tftpboot"
+	tftpRootDir := os.Getenv("TFTP_PATH")
     bootFileName := "pxelinux.0"
     
     // Verify TFTP directory and critical files exist
@@ -248,7 +258,7 @@ func main() {
     if _, err := os.Stat(pxelinuxPath); os.IsNotExist(err) {
         log.Fatalf("PXE boot file not found: %s", pxelinuxPath)
     }
-    
+    serverIP := os.Getenv("SERVER_IP")
     // Setup configurations
     dc := dhcpConfig{
         enabled: true,
@@ -314,7 +324,7 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
     }
 
     // Get the fixed server IP (should be set in config)
-    serverIP := net.ParseIP("192.168.8.103")
+    serverIP := net.ParseIP(os.Getenv("SERVER_IP"))
 
     if serverIP == nil {
         log.Printf("Invalid server IP: %s", config.serverIP)
@@ -322,7 +332,9 @@ func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4, config dhcpCo
     }
     
     // CIDR for the subnet
-    cidr := "10.80.1.0/24"
+    //cidr := "10.80.1.0/24"
+	cidr := os.Getenv("CIDR")
+
 
     // Check if MAC already has a lease
     ctx := context.Background()
@@ -449,19 +461,16 @@ func isPXEClient(m *dhcpv4.DHCPv4) bool {
     if vendorClass != nil && (string(vendorClass) == "PXEClient" || string(vendorClass) == "PXEClient:Arch:00000:UNDI:002001") {
         return true
     }
-    
     // Check for Option 93 (Client System Architecture)
     archType := m.Options.Get(dhcpv4.OptionClientSystemArchitectureType)
     if archType != nil {
         return true
     }
-    
     // Check for Option 94 (UUID/GUID)
     clientUUID := m.Options.Get(dhcpv4.OptionClientNetworkInterfaceIdentifier)
     if clientUUID != nil {
         return true
     }
-    
     return false
 }
 
@@ -647,7 +656,10 @@ func dhcpHandler(dc dhcpConfig, metricsCollector *Collector) {
 
     // Rest of your original code
     //interfaceName := "enp0s20f0u4"
-    interfaceName := "enp2s0"
+    //interfaceName := "enp2s0"
+    interfaceName := os.Getenv("PXE_INTERFACE")
+    fmt.Println("Using port ", interfaceName)
+
     if dc.bindInterface != "" {
         interfaceName = dc.bindInterface
     }
@@ -670,18 +682,19 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
 	// Log existing hook
 	originalHook := &logHook{}
 
+	//
     // Ensure TFTP root directory exists
     if _, err := os.Stat(tc.rootDir); os.IsNotExist(err) {
         log.Fatalf("TFTP root directory does not exist: %s", tc.rootDir)
     }
     
+	//
 	// Create TFTP metrics hook
 	metricsHook := NewTFTPMetricsHook(metricsCollector, tc.rootDir)
 
     // Set TFTP read callback with root directory
     readHandler := metricsHook.ReadHandler(func(filename string, rf io.ReaderFrom) error {
         // Your original read handler logic
-        
         // Normalize path by removing leading slash if present
         if filename[0] == '/' {
             filename = filename[1:]
@@ -689,7 +702,6 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
         
         // Prepend root directory to filename
         fullPath := filepath.Join(tc.rootDir, filename)
-        
         log.Printf("TFTP READ REQUEST: Client requested file: %s (full path: %s)", filename, fullPath)
         
         // Extract client IP for logging
@@ -734,15 +746,18 @@ func tftpHandler(tc tftpConfig, metricsCollector *Collector) {
         // Call the metrics hook's success callback directly
         metricsLogHook := NewMetricsLogHook(metricsCollector, originalHook)
         metricsLogHook.OnSuccess(clientIP, filename, n, duration)
-        
+
+    	//    
         // Invoke the original logHook's OnSuccess
         // originalHook.OnSuccess(transferStats{
         //     Filename: filename,
         //     RemoteAddr: remoteAddr,
         //     BytesTransferred: n,
         // })
+		//
         
         return nil
+
     })
     
     // Set TFTP write callback with root directory
