@@ -27,9 +27,10 @@ type Client interface {
 	BootFileUrl() string
 }
 
+// Make it into map so it will always be O(1) upon reading from DHCP
 type ptrClients struct {
 	//Clients []*dhcpClients
-	Clients []Client
+	Clients map[string]Client
 }
 
 func Gather() *ptrClients {
@@ -38,21 +39,28 @@ func Gather() *ptrClients {
 	// Original Client
 	newClients1 := dhcpClients{
 		offerIP: "192.168.99.200",
-		macAddress: "e2:37:36:e8:63:b5",
+		macAddress: "e2:37:36:e8:12:b7",
 		bootFileUrl: "pxelinux.0",
 	}
 
 	newClients2 := dhcpClients{
 		offerIP: "192.168.99.201",
 		macAddress: "e2:37:36:e8:63:b5",
-		bootFileUrl: "pxelinux.0",
+		bootFileUrl: "second-user-pxelinux.0",
+	}
+
+	clients := []*dhcpClients{
+		&newClients1,
+		&newClients2,
+	}
+
+	m := make(map[string]Client, len(clients))
+	for _,c := range clients {
+		m[c.macAddress] = c
 	}
 
 	return &ptrClients{
-		Clients: []Client{
-			&newClients1,
-			&newClients2,
-		},
+		Clients: m,
 	}
 }
 

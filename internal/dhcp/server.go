@@ -92,10 +92,13 @@ func isLegacyPXEClient(m *dhcpv4.DHCPv4) bool {
 //func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
 func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
 
-    log.Printf("Received DHCP request from %s, type: %s", m.ClientHWAddr.String(), m.MessageType())
+	log.Printf("----------------------------------------")
+	reqMAC := m.ClientHWAddr.String()
+
+    log.Printf("Received DHCP request from %s, type: %s", reqMAC, m.MessageType())
     isLegacyPXE := isLegacyPXEClient(m)
     if isLegacyPXE {
-        log.Printf("DHCP: Detected legacy PXE client: %s", m.ClientHWAddr.String())
+        log.Printf("DHCP: Detected legacy PXE client: %s", reqMAC)
     }
 
     reply, err := dhcpv4.NewReplyFromRequest(m)
@@ -110,9 +113,19 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
 	// offerIP Accordingly?
 	
 	fd := filedata.Gather()
-	log.Println(fd.Clients)
-	for i,c := range fd.Clients {
-		log.Printf("[Client %d] IP: %s, Mac: %s, File: %s", i, c.OfferIP(), c.MACAddress(), c.BootFileUrl())
+	var offerIP string
+	var bootFileName string
+	
+	// O(1) Lookup based on DHCP RequestMAC
+	isClient := fd.Clients[reqMAC]
+
+	if isClient != nil {
+		cMACAddress := isClient.MACAddress()
+		cOfferIP	:= isClient.OfferIP()
+		cBootFileName := isClient.BootFileUrl()
+		offerIP = cOfferIP
+		bootFileName = cBootFileName
+		log.Printf("IP: %s, Mac: %s, File: %s", cOfferIP, cMACAddress, bootFileName)
 	}
 
     // LegacyPXE 
@@ -126,9 +139,7 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
     }
 
     serverIP := net.ParseIP("192.168.99.1")
-	offerIP := "192.168.99.100"
 	offerGateway := "192.168.99.1"
-	bootFileName := "pxelinux.0"
 
     log.Printf("Offering IP %s to client %s (Gateway: %s)", offerIP, m.ClientHWAddr.String(), offerGateway)
 	
@@ -155,18 +166,17 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
     // Set appropriate response type
     switch mt := m.MessageType(); mt {
     case dhcpv4.MessageTypeDiscover:
-        log.Printf("DHCP Discover from %s", m.ClientHWAddr)
+        log.Printf("DHCP Discover from %s will Offer", m.ClientHWAddr)
         reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
     case dhcpv4.MessageTypeRequest:
-        log.Printf("DHCP Request from %s", m.ClientHWAddr)
+        log.Printf("DHCP Request from %s will ACK", m.ClientHWAddr)
         reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
     default:
         log.Printf("Unhandled Message type: %v", mt)
         return
     }
     // Log the reply we're sending
-    log.Printf("Sending reply: %s", reply.Summary())
-
+    //log.Printf("Sending reply: %s", reply.Summary())
     // Send the response
     if _, err := conn.WriteTo(reply.ToBytes(), peer); err != nil {
         log.Printf("Cannot reply to client: %v", err)
