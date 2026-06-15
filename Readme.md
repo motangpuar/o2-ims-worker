@@ -48,3 +48,16 @@ go run cmd/worker/clientTFTP.go  -h
 #     	Timeout (default 10)
 # infidel at bmw-nuc in ~/o2-ims-worker on dev*
 ```
+
+## Scripts
+
+#### Create DHCP Interfaces
+
+```
+sudo scripts/createDummyInterface.sh create
+# Will create br0 and dummy-client
+sudo scripts/createDummyInterface.sh show
+# List the interfaces
+sudo scripts/createDummyInterface.sh clean
+# Clean the interfaces
+```

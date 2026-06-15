@@ -118,6 +118,10 @@ func Gather() *Master {
 		dhcpConfig.mode = val
 	}
 
+	if val := os.Getenv("DHCP_BIND_INTERFACE"); val != "" {
+		dhcpConfig.bindInterface = val
+	}
+
 	if val := os.Getenv("DHCP_BIND_ADDRESS"); val != "" {
 		dhcpConfig.bindAddr = val
 	}

@@ -1,5 +1,6 @@
 cmd/boothandler/ims-worker
 assets/
+bin/
 
 go.sum
 go.work
