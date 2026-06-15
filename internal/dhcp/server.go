@@ -4,6 +4,7 @@ import "log"
 import "net"
 import "github.com/insomniacslk/dhcp/dhcpv4"
 import "github.com/insomniacslk/dhcp/dhcpv4/server4"
+import "github.com/motangpuar/o2-ims-worker/internal/db"
 import "strings"
 import "time"
 
@@ -102,6 +103,17 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
         log.Printf("NewReplyFromRequest failed: %v", err)
         return
     }
+
+	// Check condition should be here
+	// Based on MAC address
+	// If MAC is listed on file or db
+	// offerIP Accordingly?
+	
+	fd := filedata.Gather()
+	log.Println(fd.Clients)
+	for i,c := range fd.Clients {
+		log.Printf("[Client %d] IP: %s, Mac: %s, File: %s", i, c.OfferIP(), c.MACAddress(), c.BootFileUrl())
+	}
 
     // LegacyPXE 
     if isLegacyPXE {

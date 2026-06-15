@@ -153,19 +153,7 @@ func Gather() *Master {
 	}
 }
 
-//
-// type DHCPConfig struct {
-//     enabled       bool
-//     mode          string
-//     bindAddr      string
-//     bindInterface string
-//     tftpIP        string
-//     tftpPort      int
-//     nextServerIP  string // Add server IP for consistent responses
-//     bootFilePath  string // Add boot file path configuration
-// }
-//
-
+// DHCP Methods
 func (d *DHCPConfig) BindAddr() string { return d.bindAddr }
 func (d *DHCPConfig) Enabled() bool { return d.enabled }
 func (d *DHCPConfig) Mode() string { return d.mode }         
@@ -176,6 +164,7 @@ func (d *DHCPConfig) TFTPPort() int { return d.tftpPort }
 func (d *DHCPConfig) NextServe() string { return d.nextServerIP }
 func (d *DHCPConfig) BootFilePath() string { return d.bootFilePath }
 
+// TFTP Methods
 func (t *TFTPConfig) BindAddr() string { return t.bindAddr }
 func (t *TFTPConfig) Enabled() bool { return t.enabled }
 func (t *TFTPConfig) BindPort() int { return t.bindPort }
@@ -183,13 +172,3 @@ func (t *TFTPConfig) BlockSize() int { return t.blockSize }
 func (t *TFTPConfig) RootDir() string { return t.rootDir }
 
 
-//
-// BindAddr() string
-// Enabled() bool
-// Mode() string
-// BindInterface() string
-// TFTPIP() string
-// TFTPPort() int
-// NextServe() string
-// BootFilePath() string
-//

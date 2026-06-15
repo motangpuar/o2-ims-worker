@@ -44,10 +44,15 @@ func main()  {
 	log.Println(tftpCfgPtr.RootDir())
 	log.Println()
 
+	//log.Println(fd.Clients.MACAddress())
+	//log.Println(fd.Clients.OfferIP())
+	//log.Println(fd.Clients.BootFileUrl())
+
 	if *disableTFTP != true {
 		e := tftp.NewEngine(tftpCfgPtr)
 		go e.Start()
 	}
+
 	fmt.Println()
 	if *disableDHCP != true {
 		d := dhcp.NewEngine(dhcpCfgPtr)
