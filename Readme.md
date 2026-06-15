@@ -1,4 +1,5 @@
 # PXE Installer Agent 
+[![wakatime](https://wakatime.com/badge/user/bbc34f7e-9b97-4141-9f4c-64ed61b82c61/project/1b641e6e-4b98-40c8-b667-8ff44b7ad006.svg)](https://wakatime.com/badge/user/bbc34f7e-9b97-4141-9f4c-64ed61b82c61/project/1b641e6e-4b98-40c8-b667-8ff44b7ad006)
 
 ## Main Function
 
