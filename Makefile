@@ -1,4 +1,4 @@
-all: build build_clients
+all: build build_client
 
 build:
 	go build -o bin/worker cmd/worker/main.go 
