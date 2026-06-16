@@ -79,7 +79,7 @@ func Gather() *Master {
 	}
 
 	//
-	//DHCP Handler Structure
+	// DHCP Handler Structure
 	// type DHCPConfig struct {
 	//     enabled       bool
 	//     mode          string
@@ -94,6 +94,7 @@ func Gather() *Master {
 	// All of these dummy values 
 	// should be overrided from 
 	// Env variable
+	//
 
 	dhcpConfig := DHCPConfig{
 		enabled: true,
@@ -170,5 +171,4 @@ func (t *TFTPConfig) Enabled() bool { return t.enabled }
 func (t *TFTPConfig) BindPort() int { return t.bindPort }
 func (t *TFTPConfig) BlockSize() int { return t.blockSize }
 func (t *TFTPConfig) RootDir() string { return t.rootDir }
-
 

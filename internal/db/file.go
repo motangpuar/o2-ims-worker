@@ -1,7 +1,11 @@
 package filedata
 
 import "log"
+import "os"
+import "bufio"
+import "strings"
 
+//
 // This package will manage staticlly defined users and introduce them to dhcp
 // and tftp package
 // Milestone:
@@ -9,6 +13,7 @@ import "log"
 // 2. CSV based clients
 // 3. DB based clients -> dbdata
 // 4. Pool based broadcast, different subnets for different clusters
+//
 
 type dhcpClients struct {
 	userID string
@@ -45,7 +50,7 @@ func Gather() *ptrClients {
 
 	newClients2 := dhcpClients{
 		offerIP: "192.168.99.201",
-		macAddress: "e2:37:36:e8:63:b5",
+		macAddress: "e2:37:26:f8:63:b5",
 		bootFileUrl: "second-user-pxelinux.0",
 	}
 
@@ -54,8 +59,36 @@ func Gather() *ptrClients {
 		&newClients2,
 	}
 
+	// Process Files
+	data, err := os.Open("clients.csv")
+	if err != nil {
+		log.Printf("Failed to open file %v", err)
+	}
+
+	// Run last 
+	defer data.Close()
+
+	scanner := bufio.NewScanner(data)
+
+	// Skip first line by start an empty Scan() function from scanner
+	if scanner.Scan() {}
+
+	for scanner.Scan() {
+		cLine := scanner.Text()
+		log.Printf("[BUFIO] %s", cLine)
+		read_lines := strings.Split(cLine, ",")
+		clients = append(clients,
+			&dhcpClients{
+				offerIP: read_lines[0],
+				macAddress: read_lines[1],
+				bootFileUrl: read_lines[2],
+			},
+		)
+	}
+
 	m := make(map[string]Client, len(clients))
 	for _,c := range clients {
+		log.Printf("[Struct] %s", c)
 		m[c.macAddress] = c
 	}
 

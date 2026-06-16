@@ -1,0 +1,4 @@
+IP,MAC,BOOTFILE
+192.168.99.100,de:ea:db:ee:ee:ff,pxelinux.0
+192.168.99.101,de:ea:db:ee:ee:ff,pxelinux.0
+192.168.99.102,e2:37:36:e8:63:b5,pxelinux.0
