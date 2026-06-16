@@ -22,10 +22,6 @@ type dhcpClients struct {
 	bootFileUrl string
 }
 
-func (d *dhcpClients) Populate() {
-	log.Println("[Static DB Realm]")
-}
-
 type Client interface {
 	OfferIP() string
 	MACAddress() string
@@ -38,10 +34,9 @@ type ptrClients struct {
 	Clients map[string]Client
 }
 
-func Gather() *ptrClients {
+func Populate() {
 	log.Println("[Static DB Realm]")
-	// Default values
-	// Original Client
+
 	newClients1 := dhcpClients{
 		offerIP: "192.168.99.200",
 		macAddress: "e2:37:36:e8:12:b7",
@@ -88,15 +83,22 @@ func Gather() *ptrClients {
 
 	m := make(map[string]Client, len(clients))
 	for _,c := range clients {
-		log.Printf("[Struct] %s", c)
+		//log.Printf("[Struct] %s", c)
 		m[c.macAddress] = c
 	}
 
-	return &ptrClients{
+	// Intialize pointer of Clients
+	_ = &ptrClients{
 		Clients: m,
 	}
 }
 
+// Return Pointer when asked
+func Gather() *ptrClients {
+	return &ptrClients{}
+}
+
+// Client Specific Values
 func (d *dhcpClients) OfferIP() string { return d.offerIP }
 func (d *dhcpClients) MACAddress() string { return d.macAddress }
 func (d *dhcpClients) BootFileUrl() string { return d.bootFileUrl }

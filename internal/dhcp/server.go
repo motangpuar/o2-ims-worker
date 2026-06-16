@@ -35,22 +35,27 @@ func NewEngine(r Reader) *Engine {
 
 // isPXEClient checks if the client is requesting PXE boot
 func isPXEClient(m *dhcpv4.DHCPv4) bool {
+
     // Check for PXE client identifier
     vendorClass := m.Options.Get(dhcpv4.OptionClassIdentifier)
     if vendorClass != nil && (string(vendorClass) == "PXEClient" || string(vendorClass) == "PXEClient:Arch:00000:UNDI:002001") {
         return true
     }
+
     // Check for Option 93 (Client System Architecture)
     archType := m.Options.Get(dhcpv4.OptionClientSystemArchitectureType)
     if archType != nil {
         return true
     }
+
     // Check for Option 94 (UUID/GUID)
     clientUUID := m.Options.Get(dhcpv4.OptionClientNetworkInterfaceIdentifier)
     if clientUUID != nil {
         return true
     }
+
     return false
+
 }
 
 func isLegacyPXEClient(m *dhcpv4.DHCPv4) bool {
@@ -89,7 +94,6 @@ func isLegacyPXEClient(m *dhcpv4.DHCPv4) bool {
     return false
 }
 
-//func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
 func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
 
 	log.Printf("----------------------------------------")
@@ -107,10 +111,12 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
         return
     }
 
+	//
 	// Check condition should be here
 	// Based on MAC address
 	// If MAC is listed on file or db
 	// offerIP Accordingly?
+	//
 	
 	fd := filedata.Gather()
 	var offerIP string
@@ -182,7 +188,6 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
         log.Printf("Cannot reply to client: %v", err)
         return
     }
-
 }
 
 func (e *Engine) Start() {
