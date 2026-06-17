@@ -124,14 +124,18 @@ func (e *Engine) handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
 	
 	// O(1) Lookup based on DHCP RequestMAC
 	isClient := fd.Clients[reqMAC]
+	log.Println(isClient)
 
 	if isClient != nil {
 		cMACAddress := isClient.MACAddress()
-		cOfferIP	:= isClient.OfferIP()
+		cOfferIP := isClient.OfferIP()
 		cBootFileName := isClient.BootFileUrl()
 		offerIP = cOfferIP
 		bootFileName = cBootFileName
 		log.Printf("IP: %s, Mac: %s, File: %s", cOfferIP, cMACAddress, bootFileName)
+	} else {
+		log.Printf("Client %s Not Found on DB", reqMAC)
+		return
 	}
 
     // LegacyPXE 

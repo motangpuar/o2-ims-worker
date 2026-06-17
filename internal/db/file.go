@@ -99,16 +99,16 @@ func Populate() {
 	log.Printf("[Struct] Total Section %d", len(clients))
 
 	// Intialize pointer of Clients
-	_ = &ptrClients{
+	activePtr = &ptrClients{
 		Clients: m,
 	}
 }
 
+var activePtr *ptrClients
 // Return Pointer when asked
 func Gather() *ptrClients {
-	return &ptrClients{}
+	return activePtr
 }
-
 
 // Client Specific Values
 func (d *dhcpClients) OfferIP() string { return d.offerIP }
