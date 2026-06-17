@@ -46,7 +46,7 @@ func readHandler(filename string, rf io.ReaderFrom) error {
 		filename = filename[1:]
 	}
 
-	file, err := os.Open("/tmp/tftp/"+filename)
+	file, err := os.Open("./assets/generic/"+filename)
 
 	if err != nil {
 		log.Println("Failed to Open File:", filename)

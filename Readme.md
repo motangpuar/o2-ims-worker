@@ -5,6 +5,46 @@
 
 ### Netboot Artifacts 
 
+You will need the following files for minimal PXE boot 
+
+1. pxelinux.0
+2. libutil.c32
+3. ldlinux.c32
+4. menu.c32
+
+If you are using Fedora as Host you can get these packages from `syslinux-tftpboot`
+
+```bash
+mkdir -p assets/generic
+sudo dnf install syslinux-tftpboot -y
+cp /usr/share/syslinux/menu.c32 assets/generic/
+cp /usr/share/syslinux/libutil.c32 assets/generic/
+cp /usr/share/syslinux/ldlinux.c32 assets/generic/
+
+# Copy pxelinux.cfg files to assets
+cp -r pxelinux.cfg/ assets/generic
+tree assets/
+assets/
+└── generic
+    ├── ldlinux.c32
+    ├── libutil.c32
+    ├── menu.c32
+    ├── pxelinux.0
+    └── pxelinux.cfg
+        ├── 01-52-54-00-22-e5-fc
+        ├── 01-52-54-00-8f-c1-32
+        ├── 01-de-ea-db-ee-ee-ff
+        ├── 01-e2-32-36-e8-63-b5
+        ├── 01-e2-33-36-e8-63-b5
+        ├── 01-e2-37-26-f8-63-b5
+        ├── 01-e2-37-36-e8-12-b7
+        ├── 01-e2-37-36-e8-63-b5
+        ├── 01-XXX
+        └── default
+
+3 directories, 14 files
+```
+
 Populate the `assets/` path according to the following structure
 
 ```
@@ -20,6 +60,7 @@ assets/
 │           ├── ubuntu-24.04-latest-live-server-amd64.iso
 │           └── vmlinuz
 ```
+
 
 ## Main Function
 
