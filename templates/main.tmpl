@@ -13,12 +13,12 @@ prompt 0
 LABEL install
     MENU LABEL Install {{.OSName}}
     KERNEL {{.Kernel}}
-    INITRD boot/centos/stream9/initrd.img
 
     {{- if eq .OSType "ubuntu"}}
     APPEND ip={{.OSData.IP}} url={{.OSData.ISOUrl}} cloud-config-url={{.OSData.CloudConfigURL}} ds=nocloud-net;s={{.OSData.DS}} root={{.OSData.RootPath}}
 
     {{- else if eq .OSType "centos"}}
+    INITRD {{.OSData.Initrd}}
     APPEND inst.ks={{.OSData.InstallKickStartURL}} ip={{.OSData.IP}} inst.repo={{.OSData.InstallRepoURL}} 
 
     {{- else}}

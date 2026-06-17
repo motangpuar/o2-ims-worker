@@ -13,8 +13,8 @@ prompt 0
 LABEL install
     MENU LABEL Install Centos Stream 10
     KERNEL stream10/vmlinuz
-    INITRD boot/centos/stream9/initrd.img
-    APPEND inst.ks=https://aaaaaa/bbbb ip=dhcp inst.repo=https://aaaaaa/bbbb
+    INITRD stream10/initrd.img
+    APPEND inst.ks=none ip=dhcp inst.repo=http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/
 
 label localboot
     menu label Boot from Local Drive

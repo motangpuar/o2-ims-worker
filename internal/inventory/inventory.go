@@ -50,8 +50,8 @@ func Generate(m string, t string) {
 		osDetails = CentOSSpecific{
 			Initrd: "stream10/initrd.img",
 			IP: "dhcp",
-			InstallKickStartURL: "https://aaaaaa/bbbb",
-			InstallRepoURL: "https://aaaaaa/bbbb",
+			InstallKickStartURL: "none",
+			InstallRepoURL: "http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/",
 		}
 		targetMachine = MachineConfig{
 			OSName: "Centos Stream 10",
@@ -81,7 +81,7 @@ func Generate(m string, t string) {
 		log.Fatalf("Failed to parse template file %v", err)
 	}
 
-	dumpFile := "pxelinux.cfg/01-"+strings.ReplaceAll(m, ":", "-")
+	dumpFile := "assets/generic/pxelinux.cfg/01-"+strings.ReplaceAll(m, ":", "-")
 	outFile, err := os.Create(dumpFile)
 	if err != nil {
 		panic(err)

@@ -43,6 +43,10 @@ assets/
         └── default
 
 3 directories, 14 files
+
+# Download vmlinuz and initrd
+wget http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/images/pxeboot/vmlinuz -O assets/generic/stream10
+wget http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/images/pxeboot/initrd.img -O assets/generic/stream10
 ```
 
 Populate the `assets/` path according to the following structure

@@ -13,7 +13,6 @@ prompt 0
 LABEL install
     MENU LABEL Install Ubuntu 20.04
     KERNEL ubuntu20.04/vmlinuz
-    INITRD boot/centos/stream9/initrd.img
     APPEND ip=dhcp url=https://aaaaaa/bbbb cloud-config-url=https://aaaaaa/bbbb ds=nocloud-net;s=https://aaaaaa/bbbb/metadata/ root=/dev/ram0
 
 label localboot
