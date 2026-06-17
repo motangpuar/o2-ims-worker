@@ -1,5 +1,6 @@
 package filedata
 
+import "github.com/motangpuar/o2-ims-worker/internal/inventory"
 import "log"
 import "os"
 import "bufio"
@@ -20,6 +21,7 @@ type dhcpClients struct {
 	offerIP string
 	macAddress string
 	bootFileUrl string
+	osType string
 }
 
 type Client interface {
@@ -41,12 +43,14 @@ func Populate() {
 		offerIP: "192.168.99.200",
 		macAddress: "e2:37:36:e8:12:b7",
 		bootFileUrl: "pxelinux.0",
+		osType: "centos",
 	}
 
 	newClients2 := dhcpClients{
 		offerIP: "192.168.99.201",
 		macAddress: "e2:37:26:f8:63:b5",
 		bootFileUrl: "second-user-pxelinux.0",
+		osType: "centos",
 	}
 
 	clients := []*dhcpClients{
@@ -64,6 +68,10 @@ func Populate() {
 	defer data.Close()
 
 	scanner := bufio.NewScanner(data)
+	if scanner.Err() != nil {
+		log.Fatalf("Failed to scan CSV file: %s", err)
+	}
+
 
 	// Skip first line by start an empty Scan() function from scanner
 	if scanner.Scan() {}
@@ -77,6 +85,7 @@ func Populate() {
 				offerIP: read_lines[0],
 				macAddress: read_lines[1],
 				bootFileUrl: read_lines[2],
+				osType: read_lines[3],
 			},
 		)
 	}
@@ -85,6 +94,7 @@ func Populate() {
 	for _,c := range clients {
 		log.Printf("[Struct] %s", c)
 		m[c.macAddress] = c
+		inventory.Generate(c.macAddress, c.osType)
 	}
 	log.Printf("[Struct] Total Section %d", len(clients))
 
@@ -98,6 +108,7 @@ func Populate() {
 func Gather() *ptrClients {
 	return &ptrClients{}
 }
+
 
 // Client Specific Values
 func (d *dhcpClients) OfferIP() string { return d.offerIP }

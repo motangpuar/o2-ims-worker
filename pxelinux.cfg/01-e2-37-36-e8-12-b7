@@ -1,0 +1,23 @@
+timeout 30
+ui menu.c32
+menu title Infidel's PXE boot Manager
+MENU COLOR screen * #ffffffff #00000000 std
+MENU COLOR border * #ff0000ff #00000000 std
+MENU COLOR title * #ff00ffff #00000000 std
+MENU COLOR sel * #ffffffff #ffff00ff none
+MENU COLOR unsel * #ffffffff #00000000 std
+default install
+prompt 0
+
+
+LABEL install
+    MENU LABEL Install Centos Stream 10
+    KERNEL stream10/vmlinuz
+    INITRD boot/centos/stream9/initrd.img
+    APPEND inst.ks=https://aaaaaa/bbbb ip=dhcp inst.repo=https://aaaaaa/bbbb
+
+label localboot
+    menu label Boot from Local Drive
+    localboot 0
+menu end
+

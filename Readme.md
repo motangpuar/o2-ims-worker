@@ -1,6 +1,26 @@
 # PXE Installer Agent 
 [![wakatime](https://wakatime.com/badge/user/bbc34f7e-9b97-4141-9f4c-64ed61b82c61/project/1b641e6e-4b98-40c8-b667-8ff44b7ad006.svg)](https://wakatime.com/badge/user/bbc34f7e-9b97-4141-9f4c-64ed61b82c61/project/1b641e6e-4b98-40c8-b667-8ff44b7ad006)
 
+## Prerequisites
+
+### Netboot Artifacts 
+
+Populate the `assets/` path according to the following structure
+
+```
+assets/
+├── boot
+│   ├── rhel
+│   └── ubuntu
+│       └── jammy
+│           ├── initrd
+│           ├── metadata
+│           │   ├── meta-data
+│           │   └── user-data
+│           ├── ubuntu-24.04-latest-live-server-amd64.iso
+│           └── vmlinuz
+```
+
 ## Main Function
 
 ```

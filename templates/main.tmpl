@@ -1,0 +1,32 @@
+timeout 30
+ui menu.c32
+menu title Infidel's PXE boot Manager
+MENU COLOR screen * #ffffffff #00000000 std
+MENU COLOR border * #ff0000ff #00000000 std
+MENU COLOR title * #ff00ffff #00000000 std
+MENU COLOR sel * #ffffffff #ffff00ff none
+MENU COLOR unsel * #ffffffff #00000000 std
+default install
+prompt 0
+
+
+LABEL install
+    MENU LABEL Install {{.OSName}}
+    KERNEL {{.Kernel}}
+    INITRD boot/centos/stream9/initrd.img
+
+    {{- if eq .OSType "ubuntu"}}
+    APPEND ip={{.OSData.IP}} url={{.OSData.ISOUrl}} cloud-config-url={{.OSData.CloudConfigURL}} ds=nocloud-net;s={{.OSData.DS}} root={{.OSData.RootPath}}
+
+    {{- else if eq .OSType "centos"}}
+    APPEND inst.ks={{.OSData.InstallKickStartURL}} ip={{.OSData.IP}} inst.repo={{.OSData.InstallRepoURL}} 
+
+    {{- else}}
+    MENU LABEL Unknown OS Type Configured
+    {{- end}}
+
+label localboot
+    menu label Boot from Local Drive
+    localboot 0
+menu end
+
