@@ -55,7 +55,7 @@ func Populate() {
 	}
 
 	// Process Files
-	data, err := os.Open("clients.csv")
+	data, err := os.Open("inputs/clients.csv")
 	if err != nil {
 		log.Printf("Failed to open file %v", err)
 	}
@@ -70,7 +70,7 @@ func Populate() {
 
 	for scanner.Scan() {
 		cLine := scanner.Text()
-		log.Printf("[BUFIO] %s", cLine)
+		//log.Printf("[BUFIO] %s", cLine)
 		read_lines := strings.Split(cLine, ",")
 		clients = append(clients,
 			&dhcpClients{
@@ -83,9 +83,10 @@ func Populate() {
 
 	m := make(map[string]Client, len(clients))
 	for _,c := range clients {
-		//log.Printf("[Struct] %s", c)
+		log.Printf("[Struct] %s", c)
 		m[c.macAddress] = c
 	}
+	log.Printf("[Struct] Total Section %d", len(clients))
 
 	// Intialize pointer of Clients
 	_ = &ptrClients{

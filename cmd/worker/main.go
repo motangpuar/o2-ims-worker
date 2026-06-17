@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	//"time"
 )
 
 func main()  {
@@ -40,20 +41,13 @@ func main()  {
 				if !ok {
 					return
 				}
-				log.Printf("File Watcher Event: %s", event.String()) 
-				if event.Has(fsnotify.Write) {
-					log.Println("WRITE Event detected:", event.Name) 
+				if event.Name == "inputs/clients.csv" {
+					log.Println("[*] Filename Filter:", event.Name) 
 					filedata.Populate()
+					continue
 				}
-				if event.Has(fsnotify.Rename) {
-					log.Println("[!] Rename Event detected:", event.Name) 
-				}
-				if event.Has(fsnotify.Remove) {
-					log.Println("[!] Remove Event detected:", event.Name) 
-				}
-				if event.Has(fsnotify.Chmod) {
-					log.Println("Chmod Event detected:", event.Name) 
-				}
+				log.Printf("File Watcher Event: %s ", event.String()) 
+				log.Printf("Doing nothing on: %s ", event.Name) 
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
@@ -63,7 +57,7 @@ func main()  {
 		}
 	}()
 
-	err = watcher.Add("clients.csv")
+	err = watcher.Add("./inputs/")
 	if err != nil {
 		log.Fatal(err)
 	}
