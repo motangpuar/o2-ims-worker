@@ -4,6 +4,7 @@ import "github.com/motangpuar/o2-ims-worker/internal/config"
 import "github.com/motangpuar/o2-ims-worker/internal/tftp"
 import "github.com/motangpuar/o2-ims-worker/internal/dhcp"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
+import "github.com/motangpuar/o2-ims-worker/internal/http"
 import "github.com/fsnotify/fsnotify"
 
 import (
@@ -99,6 +100,9 @@ func main()  {
 		d := dhcp.NewEngine(dhcpCfgPtr)
 		go d.Start()
 	}
+
+	
+	go http_handler.Serve()
 
 	// Wait for it to stop
 	sigChan := make(chan os.Signal, 1)

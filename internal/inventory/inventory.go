@@ -50,8 +50,8 @@ func Generate(m string, t string) {
 		osDetails = CentOSSpecific{
 			Initrd: "stream10/initrd.img",
 			IP: "dhcp",
-			InstallKickStartURL: "none",
-			InstallRepoURL: "http://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/",
+			InstallKickStartURL: "http://192.168.99.1:8033/centos10.ks",
+			InstallRepoURL: "http://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/",
 		}
 		targetMachine = MachineConfig{
 			OSName: "Centos Stream 10",
