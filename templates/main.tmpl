@@ -15,11 +15,16 @@ LABEL install
     KERNEL {{.Kernel}}
 
     {{- if eq .OSType "ubuntu"}}
-    APPEND ip={{.OSData.IP}} url={{.OSData.ISOUrl}} cloud-config-url={{.OSData.CloudConfigURL}} ds=nocloud-net;s={{.OSData.DS}} root={{.OSData.RootPath}}
+    INITRD {{.OSData.Initrd}}
+    APPEND ip={{.OSData.IP}} url={{.OSData.ISOUrl}} cloud-config-url=/dev/null ds=nocloud-net;s={{.OSData.DS}} autoinstall ---
 
     {{- else if eq .OSType "centos"}}
     INITRD {{.OSData.Initrd}}
     APPEND inst.ks={{.OSData.InstallKickStartURL}} ip={{.OSData.IP}} inst.repo={{.OSData.InstallRepoURL}} 
+
+    {{- else if eq .OSType "debian"}}
+    INITRD {{.OSData.Initrd}}
+    APPEND auto=true priority=critical preseed/url={{.OSData.PreeSeedURL}} vga=normal --- quiet
 
     {{- else}}
     MENU LABEL Unknown OS Type Configured

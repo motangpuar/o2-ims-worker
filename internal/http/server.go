@@ -8,10 +8,19 @@ func handleTest(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("This is the test path..."))
 }
 
+func logFileServer(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[HTTP] Request for file: %s", r.URL.Path)
+		next.ServeHTTP(w, r)
+	}
+}
+
 func Serve() {
 	dir := "assets/http/"
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir(dir)))
+	filehandler := http.StripPrefix("/", http.FileServer(http.Dir(dir)))
+	mux.HandleFunc("/", logFileServer(filehandler))
+
 	mux.HandleFunc("/test", handleTest)
 	log.Fatal(http.ListenAndServe(":8033", mux))
 }

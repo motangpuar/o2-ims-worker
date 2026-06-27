@@ -1,0 +1,5 @@
+[centos10-baseos-mirror]
+name=CentOS Stream 10 - BaseOS Mirror
+baseurl=https://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/
+enabled=1
+gpgcheck=0

@@ -1,0 +1,27 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  # 2. Network configuration (Defaults to DHCP on all interfaces)
+  network:
+    version: 2
+    ethernets:
+      all-en:
+        match:
+          name: "e*"
+        dhcp4: true
+  storage:
+    layout:
+      name: direct
+  identity:
+    hostname: ubuntu2604-pxe
+    username: ubuntu
+    password: "$6$57ibScF6dKsyZP59$g8fuNTAB544Py2wtN5Mdy/M8UIq/iE67c8vADiSTKSMVGrnVyquXe21PVkNjpSCOBJU8ExFw5Ay1gniehvMcr/"
+    realname: Ubuntu Administrator
+  ssh:
+    install-server: true
+    allow-pw: true
+  updates: security
+  shutdown: reboot

@@ -15,6 +15,11 @@ type CentOSSpecific struct {
 type RHELSpecific struct {
 }
 
+type DebianSpecific struct {
+	Initrd string
+	PreeSeedURL string
+}
+
 type CoreOSSpecifc struct {
 	Initrd string
 	RootFSURL string
@@ -51,7 +56,7 @@ func Generate(m string, t string) {
 			Initrd: "stream10/initrd.img",
 			IP: "dhcp",
 			InstallKickStartURL: "http://192.168.99.1:8033/centos10.ks",
-			InstallRepoURL: "http://mirror.stream.centos.org/10-stream/BaseOS/x86_64/os/",
+			InstallRepoURL: "http://192.168.99.1:8033/mirrors/stream10/",
 		}
 		targetMachine = MachineConfig{
 			OSName: "Centos Stream 10",
@@ -61,17 +66,29 @@ func Generate(m string, t string) {
 		}
 	case "ubuntu":
 		osDetails = UbuntuSpecific{
-			Initrd: "ubuntu/initrd.img",
 			IP: "dhcp",
-			ISOUrl: "https://aaaaaa/bbbb",
-			CloudConfigURL: "https://aaaaaa/bbbb",
-			DS: "https://aaaaaa/bbbb/metadata/",
+			Initrd: "ubuntu/initrd",
+			//ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-desktop-amd64.iso",
+			ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-live-server-amd64.iso",
+			CloudConfigURL: "/dev/null",
+			DS: "http://192.168.99.1:8033/ubuntu/autoinstall/",
 			RootPath: "/dev/ram0",
 		}
 		targetMachine = MachineConfig{
 			OSName: "Ubuntu 20.04",
 			OSType: t,
-			Kernel: "ubuntu20.04/vmlinuz",
+			Kernel: "ubuntu/linux",
+			OSData: osDetails,
+		}
+	case "debian":
+		osDetails = DebianSpecific{
+			Initrd: "debian/initrd.gz",
+			PreeSeedURL: "http://192.168.99.1:8033/debian/preseed.cfg",
+		}
+		targetMachine = MachineConfig{
+			OSName: "Debian 12",
+			OSType: t,
+			Kernel: "debian/linux",
 			OSData: osDetails,
 		}
 	}
