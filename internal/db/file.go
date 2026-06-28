@@ -5,6 +5,7 @@ import "log"
 import "os"
 import "bufio"
 import "strings"
+import "fmt"
 
 //
 // This package will manage staticlly defined users and introduce them to dhcp
@@ -23,8 +24,7 @@ type dhcpClients struct {
 	bootFileUrl string
 	osType string
 }
-
-type Client interface {
+type Client interface { 
 	OfferIP() string
 	MACAddress() string
 	BootFileUrl() string
@@ -34,6 +34,71 @@ type Client interface {
 type ptrClients struct {
 	//Clients []*dhcpClients
 	Clients map[string]Client
+}
+
+func AddItem(ip, mac, osType string) {
+
+	newClients := dhcpClients{
+		offerIP: ip,
+		macAddress: mac,
+		bootFileUrl: "pxelinux.0",
+		osType: osType,
+	}
+
+	clients := Gather().Clients
+	clients[mac] = &newClients
+
+	for _,c := range clients {
+		log.Printf("[Current Struct] %s", c)
+	}
+
+	log.Printf("[Current Struct] %s", newClients)
+	log.Printf("[Add File] Total Section %d", len(clients))
+
+}
+
+func AddItemToFile(ip, mac, osType string) {
+	
+	clients := Gather().Clients
+
+	if clients[mac] != nil {
+		log.Printf("[FILE] Entry Exist: %s", mac)
+		return 
+	}
+
+	for _,c := range clients {
+		if c.OfferIP() == ip {
+			log.Printf("[FILE] IP Exist: %s", c.MACAddress())
+			return 
+		}
+	}
+
+	file, err := os.OpenFile("inputs/clients.csv", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		log.Printf("[FILE] Error Opening File: %v", err)
+		return 
+	}
+
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	_, err = fmt.Fprintf(writer, "%s,%s,pxelinux.0,%s\n", ip, mac, osType )
+	if err != nil {
+		log.Printf("[FILE] Error: %v", err)
+		return
+	}
+
+	err = writer.Flush()
+
+	
+
+	if err != nil {
+		log.Printf("[FILE] Error flush: %v", err)
+	}
+
+	Populate()
+
 }
 
 func Populate() {
@@ -105,6 +170,7 @@ func Populate() {
 }
 
 var activePtr *ptrClients
+
 // Return Pointer when asked
 func Gather() *ptrClients {
 	return activePtr
@@ -114,4 +180,3 @@ func Gather() *ptrClients {
 func (d *dhcpClients) OfferIP() string { return d.offerIP }
 func (d *dhcpClients) MACAddress() string { return d.macAddress }
 func (d *dhcpClients) BootFileUrl() string { return d.bootFileUrl }
-

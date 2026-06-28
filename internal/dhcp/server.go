@@ -216,11 +216,11 @@ func (e *Engine) Start() {
 
 	server, err := server4.NewServer(bindInterface,lAddr, e.handler)
 	if err != nil {
-		log.Fatal("Failed to create DHCP server: %v", err)
+		log.Fatalf("Failed to create DHCP server: %v", err)
 	}
 
 	if err := server.Serve(); err != nil {
-		log.Fatal("DHCP server error: %v", err)
+		log.Fatalf("DHCP server error: %v", err)
 	}
 }
 
