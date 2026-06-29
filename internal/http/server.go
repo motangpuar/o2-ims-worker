@@ -4,6 +4,7 @@ import "log"
 import "net/http"
 import "encoding/json"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
+import "slices"
 
 type pipeLine struct {
 	Name string `json:"name"`
@@ -25,7 +26,11 @@ func logFileServer(next http.Handler) http.HandlerFunc {
 }
 
 func handlePipeline(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
+	fd := filedata.Gather() 
+	responseBody := fd.Clients
+
+	switch response := r.Method; response {
+	case http.MethodPost:
 		defer r.Body.Close()
 		var pipe pipeLine 
 		err := json.NewDecoder(r.Body).Decode(&pipe)
@@ -35,17 +40,49 @@ func handlePipeline(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 			return
 		}
+		
 		log.Printf("[HTTP] Received data %+v", pipe)
+		validOSTypes := []string{"debian", "centos", "ubuntu"}
+		if  !slices.Contains(validOSTypes, pipe.OS) {
+			log.Printf("No OS Type like that")
+			http.Error(w, "OS Type Not Exist: "+pipe.OS+". Only valid options are (debian, centos, ubuntu)", http.StatusBadRequest)
+			return
+		}
+
+		if responseBody[pipe.Mac] != nil {
+			log.Printf("[HTTP] Entry Exist")
+			http.Error(w, "Entry Exist: "+pipe.Mac, http.StatusBadRequest)
+			return
+		} else {
+			for _,c := range responseBody{
+				if c.OfferIP() == pipe.IP {
+					log.Printf("[HTTP] IP Exist")
+					http.Error(w, "IP Exist: "+pipe.IP, http.StatusBadRequest)
+					return
+				}
+			}
+		}
+		
 		filedata.AddItemToFile(pipe.IP, pipe.Mac, pipe.OS)
-	} else if r.Method == http.MethodGet {
+	case http.MethodGet:
 		log.Printf("[HTTP] Request for pipeline: %s", r.URL.Path)
-		fd := filedata.Gather() 
-		log.Printf("[HTTP] Fetch Gateher: %s", fd.Clients)
-	} else {
+		jsonPayload := make(map[string]any)
+
+		for m,c := range responseBody {
+			jsonPayload[m] = c.ToMap()
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(jsonPayload)
+		if err != nil {
+			log.Printf("Failed to send Response")
+			http.Error(w, "Error Detected", http.StatusInternalServerError)
+			return
+		}
+	default:
 		log.Printf("[HTTP] Bad Request: %s", r.URL.Path)
 		return
 	}
-
 }
 
 func Serve() {

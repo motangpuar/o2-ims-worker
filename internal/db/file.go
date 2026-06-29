@@ -28,6 +28,7 @@ type Client interface {
 	OfferIP() string
 	MACAddress() string
 	BootFileUrl() string
+	ToMap() map[string]any
 }
 
 // Make it into map so it will always be O(1) upon reading from DHCP
@@ -180,3 +181,14 @@ func Gather() *ptrClients {
 func (d *dhcpClients) OfferIP() string { return d.offerIP }
 func (d *dhcpClients) MACAddress() string { return d.macAddress }
 func (d *dhcpClients) BootFileUrl() string { return d.bootFileUrl }
+func (d *dhcpClients) OSType() string { return d.osType }
+func (d *dhcpClients) DHCPClient() *dhcpClients { return d }
+
+func (d *dhcpClients) ToMap() map[string]any {
+	return map[string]any{
+		"ip": d.offerIP,
+		"mac": d.macAddress,
+		"bootfile": d.bootFileUrl,
+		"ostype": d.osType,
+	}
+}
