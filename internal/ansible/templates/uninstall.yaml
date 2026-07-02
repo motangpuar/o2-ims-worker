@@ -1,0 +1,17 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: check if k3s uninstall script exists
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s-uninstall.sh
+      register: k3s_uninstall
+
+    - name: run k3s uninstall script
+      ansible.builtin.command:
+        cmd: /usr/local/bin/k3s-uninstall.sh
+      when: k3s_uninstall.stat.exists
+
+    - name: remove kubeconfig
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: absent

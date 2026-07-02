@@ -71,6 +71,12 @@ label rhel-ks
     KERNEL rhel/vmlinuz
     APPEND biosdevname=0 ksdevice=link load_ramdisk=1 initrd=boot/assets/boot/rhel/9.0/initrd.img network ks=http://10.80.1.1/boot/rhel/9.0/anaconda-ks.cfg noipv6
 
+LABEL install
+    MENU LABEL Install Debian 12
+    KERNEL debian/linux
+    INITRD debian/initrd.gz
+    APPEND auto=true priority=critical preseed/url=http://192.168.99.1:8033/debian/preseed.cfg vga=normal --- quiet
+
 label localboot
     menu label Boot from Local Drive
     localboot 1

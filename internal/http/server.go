@@ -4,6 +4,7 @@ import "log"
 import "net/http"
 import "encoding/json"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
+import "github.com/motangpuar/o2-ims-worker/internal/inventory"
 import "slices"
 
 type pipeLine struct {
@@ -16,13 +17,25 @@ type pipeLine struct {
 func handleTest(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[HTTP] Request arrive for Test Path...")
 	w.Write([]byte("This is the test path...\n"))
-}
+} 
 
 func logFileServer(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[HTTP] Request for file: %s", r.URL.Path)
 		next.ServeHTTP(w, r)
 	}
+}
+
+func handleInventory(w http.ResponseWriter, r *http.Request){
+	log.Printf("[HTTP] Request for inventories")
+	inventories := inventory.FetchMachines()
+	
+	err := json.NewEncoder(w).Encode(inventories)
+	if err != nil {
+		log.Printf("[HTTP] Error...")
+		return
+	}
+	log.Printf("[HTTP] Inventories, %v", inventories)
 }
 
 func handlePipeline(w http.ResponseWriter, r *http.Request) {
@@ -92,5 +105,6 @@ func Serve() {
 	mux.HandleFunc("/", logFileServer(filehandler))
 	mux.HandleFunc("/pipeline", handlePipeline)
 	mux.HandleFunc("/test", handleTest)
+	mux.HandleFunc("/inventories", handleInventory)
 	log.Fatal(http.ListenAndServe(":8033", mux))
 }

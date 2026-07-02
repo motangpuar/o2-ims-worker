@@ -156,12 +156,18 @@ func Populate() {
 		)
 	}
 
+	// Populate Template struct with empty
+	inventory.Init()
+
 	m := make(map[string]Client, len(clients))
 	for _,c := range clients {
 		log.Printf("[Struct] %s", c)
 		m[c.macAddress] = c
+
+		// Generate Template of given Client
 		inventory.Generate(c.macAddress, c.osType)
 	}
+
 	log.Printf("[Struct] Total Section %d", len(clients))
 
 	// Intialize pointer of Clients

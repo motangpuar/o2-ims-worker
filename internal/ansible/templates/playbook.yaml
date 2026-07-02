@@ -1,0 +1,36 @@
+- hosts: all
+  become: true
+  tasks:
+    - name: download k3s installer
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: "0755"
+
+    - name: install k3s
+      ansible.builtin.command:
+        cmd: /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_EXEC: "server --disable traefik"
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: wait for k3s to be ready
+      ansible.builtin.command:
+        cmd: k3s kubectl get nodes
+      register: node_status
+      retries: 10
+      delay: 10
+      until: "'Ready' in node_status.stdout"
+
+    - name: patch kubeconfig server address
+      ansible.builtin.replace:
+        path: /etc/rancher/k3s/k3s.yaml
+        regexp: '127\.0\.0\.1'
+        replace: "{{ ansible_host }}"
+
+    - name: fetch kubeconfig
+      ansible.builtin.fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "{{ kubeconfig_dest }}"
+        flat: true

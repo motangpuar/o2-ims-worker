@@ -44,12 +44,23 @@ type MachineConfig struct {
 	OSData any
 }
 
+type ptrMachines struct {
+	Machines map[string]MachineConfig
+}
+
+var activeMachines *ptrMachines
+
+func FetchMachines() *ptrMachines{
+	return activeMachines
+}
+
 func Generate(m string, t string) {
 	log.Printf("[Inventory Realm]--------------------")
 	log.Printf("[Inventory] Procsesing for %s", m)
 
 	var osDetails any
 	var targetMachine MachineConfig
+
 	switch t {
 	case "centos":
 		osDetails = CentOSSpecific{
@@ -110,6 +121,15 @@ func Generate(m string, t string) {
 	if err != nil {
 		panic(err)
 	}
-
+	
+	// Append current client as template struct
+	machines := activeMachines.Machines
+	machines[m] = targetMachine
 }
 
+func Init() {
+	machines := make(map[string]MachineConfig)
+	activeMachines = &ptrMachines{
+		Machines: machines,
+	}
+}
