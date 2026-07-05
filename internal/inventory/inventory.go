@@ -24,8 +24,7 @@ type CoreOSSpecifc struct {
 	Initrd string
 	RootFSURL string
 	InstallDev string
-	IgnitionURL string
-}
+	IgnitionURL string }
 
 type UbuntuSpecific struct {
 	Initrd string
@@ -38,6 +37,7 @@ type UbuntuSpecific struct {
 
 // Main Struc
 type MachineConfig struct {
+	ID string
 	OSName string
 	OSType string
 	Kernel string
@@ -60,6 +60,11 @@ func Generate(m string, t string) {
 
 	var osDetails any
 	var targetMachine MachineConfig
+	macAsID := strings.ReplaceAll(m, ":", "-")
+
+	targetMachine = MachineConfig{
+			ID: macAsID,
+	}
 
 	switch t {
 	case "centos":
@@ -69,12 +74,10 @@ func Generate(m string, t string) {
 			InstallKickStartURL: "http://192.168.99.1:8033/centos10.ks",
 			InstallRepoURL: "http://192.168.99.1:8033/mirrors/stream10/",
 		}
-		targetMachine = MachineConfig{
-			OSName: "Centos Stream 10",
-			OSType: t,
-			Kernel: "stream10/vmlinuz",
-			OSData: osDetails,
-		}
+		targetMachine.OSName="Centos Stream 10"
+		targetMachine.OSType=t
+		targetMachine.Kernel="stream10/vmlinuz"
+		targetMachine.OSData=osDetails
 	case "ubuntu":
 		osDetails = UbuntuSpecific{
 			IP: "dhcp",
@@ -85,32 +88,55 @@ func Generate(m string, t string) {
 			DS: "http://192.168.99.1:8033/ubuntu/autoinstall/",
 			RootPath: "/dev/ram0",
 		}
-		targetMachine = MachineConfig{
-			OSName: "Ubuntu 20.04",
-			OSType: t,
-			Kernel: "ubuntu/linux",
-			OSData: osDetails,
-		}
+		targetMachine.OSName="Ubuntu 20.04"
+		targetMachine.OSType=t
+		targetMachine.Kernel="ubuntu/linux"
+		targetMachine.OSData=osDetails
 	case "debian":
+
 		osDetails = DebianSpecific{
 			Initrd: "debian/initrd.gz",
-			PreeSeedURL: "http://192.168.99.1:8033/debian/preseed.cfg",
+			PreeSeedURL: "http://192.168.99.1:8033/debian/preseed-"+macAsID+".cfg",
 		}
-		targetMachine = MachineConfig{
-			OSName: "Debian 12",
-			OSType: t,
-			Kernel: "debian/linux",
-			OSData: osDetails,
-		}
+		targetMachine.OSName="Debian 12"
+		targetMachine.OSType=t
+		targetMachine.Kernel="debian/linux"
+		targetMachine.OSData=osDetails
+		genDebianSeed(macAsID, m)
 	}
 
-	tmpl, err := template.ParseFiles("templates/main.tmpl")
+	//Generate Grub Entry
+	genPXEEntry("bios", m, &targetMachine) 
+	genPXEEntry("efi", m, &targetMachine) 
+
+	
+	// Append current client as template struct
+	machines := activeMachines.Machines
+	machines[m] = targetMachine
+}
+
+func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
+
+	var dumpFile string
+	var templateFile string
+
+
+	switch mode {
+	case "bios":
+		templateFile = "templates/main.tmpl"
+		dumpFile = "assets/generic/pxelinux.cfg/01-"+strings.ReplaceAll(m, ":", "-")
+	case "efi":
+		templateFile = "templates/grub.tmpl"
+		dumpFile = "assets/generic/grub.cfg-01-"+strings.ReplaceAll(m, ":", "-")
+	}
+
+	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {
 		log.Fatalf("Failed to parse template file %v", err)
 	}
-
-	dumpFile := "assets/generic/pxelinux.cfg/01-"+strings.ReplaceAll(m, ":", "-")
+	
 	outFile, err := os.Create(dumpFile)
+
 	if err != nil {
 		panic(err)
 	}
@@ -121,10 +147,6 @@ func Generate(m string, t string) {
 	if err != nil {
 		panic(err)
 	}
-	
-	// Append current client as template struct
-	machines := activeMachines.Machines
-	machines[m] = targetMachine
 }
 
 func Init() {

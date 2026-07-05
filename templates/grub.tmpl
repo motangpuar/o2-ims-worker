@@ -1,0 +1,12 @@
+set timeout=5
+set default=0
+
+{{- if eq .OSType "debian"}}
+menuentry "Install {{.OSName}} for {{.ID}}" {
+    linux {{.Kernel}} \
+        auto=true \
+        preseed/url={{.OSData.PreeSeedURL}} \
+        priority=critical
+    initrd {{.OSData.Initrd}}
+}
+{{- end}}

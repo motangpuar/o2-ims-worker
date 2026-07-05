@@ -3,7 +3,7 @@
 
 ## Prerequisites
 
-### Netboot Artifacts 
+### BIOS: Netboot Artifacts 
 
 You will need the following files for minimal PXE boot 
 
@@ -63,6 +63,17 @@ assets/
 │           │   └── user-data
 │           ├── ubuntu-24.04-latest-live-server-amd64.iso
 │           └── vmlinuz
+```
+
+### EFI: Netboot Artifacts
+
+Populate the served tftp components for EFI boot mode
+
+```
+podman run --rm   -v ./assets/generic/:/tftp:Z   debian:stable   bash -c "apt-get update -q && \
+           apt-get install -y grub-efi-amd64 shim-unsigned && \
+           cp /usr/lib/shim/* /tftp/ && \"
+           cp /usr/lib/grub/x86_64-efi/monolithic/* /tftp/"
 ```
 
 
@@ -127,3 +138,4 @@ sudo scripts/createDummyInterface.sh show
 sudo scripts/createDummyInterface.sh clean
 # Clean the interfaces
 ```
+
