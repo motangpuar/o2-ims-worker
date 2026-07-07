@@ -1,9 +1,11 @@
 package inventory
 
 import "log"
+import "fmt"
 import "text/template"
 import "os"
 import "strings"
+import "time"
 
 type CentOSSpecific struct {
 	Initrd string
@@ -42,16 +44,48 @@ type MachineConfig struct {
 	OSType string
 	Kernel string
 	OSData any
+	Installed bool
+}
+
+type installedMachines struct {
+	//mac string
+	//osType string
+	Machines map[string]*MachineConfig
+	InstallTime time.Time
 }
 
 type ptrMachines struct {
-	Machines map[string]MachineConfig
+	Machines map[string]*MachineConfig
 }
 
 var activeMachines *ptrMachines
+var activeInstalledMachines *installedMachines
 
 func FetchMachines() *ptrMachines{
 	return activeMachines
+}
+
+func FetchInstalledMachines() *installedMachines{
+	return activeInstalledMachines
+}
+
+func LogInstalledMachine(m, ot string, installedAt time.Time) error {
+	targetMachine, exist := activeMachines.Machines[m]
+	if exist != true  {
+		log.Printf("[Inventory] Invalid MAC: %v", m)
+		return fmt.Errorf("Inventory not Exist: %v", m)
+	} else {
+		activeInstalledMachines.Machines[m] = targetMachine
+		activeInstalledMachines.InstallTime = time.Now()
+		targetMachine.Installed = true
+		//Generate Grub Entry
+		genPXEEntry("bios", m, targetMachine) 
+		genPXEEntry("efi", m, targetMachine) 
+
+		log.Printf("[Inventory] Foudn Machine, %v", targetMachine)
+		log.Printf("[Inventory] Installed object is %v", activeInstalledMachines)
+		return nil
+	}
 }
 
 func Generate(m string, t string) {
@@ -64,6 +98,7 @@ func Generate(m string, t string) {
 
 	targetMachine = MachineConfig{
 			ID: macAsID,
+			Installed: false,
 	}
 
 	switch t {
@@ -93,7 +128,6 @@ func Generate(m string, t string) {
 		targetMachine.Kernel="ubuntu/linux"
 		targetMachine.OSData=osDetails
 	case "debian":
-
 		osDetails = DebianSpecific{
 			Initrd: "debian/initrd.gz",
 			PreeSeedURL: "http://192.168.99.1:8033/debian/preseed-"+macAsID+".cfg",
@@ -112,7 +146,7 @@ func Generate(m string, t string) {
 	
 	// Append current client as template struct
 	machines := activeMachines.Machines
-	machines[m] = targetMachine
+	machines[m] = &targetMachine
 }
 
 func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
@@ -129,7 +163,7 @@ func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
 		templateFile = "templates/grub.tmpl"
 		dumpFile = "assets/generic/grub.cfg-01-"+strings.ReplaceAll(m, ":", "-")
 	}
-
+	log.Printf("Value: mode %s for state %v", mode, targetMachine.Installed)
 	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {
 		log.Fatalf("Failed to parse template file %v", err)
@@ -150,8 +184,14 @@ func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
 }
 
 func Init() {
-	machines := make(map[string]MachineConfig)
+	machines := make(map[string]*MachineConfig)
+
 	activeMachines = &ptrMachines{
 		Machines: machines,
 	}
+
+	activeInstalledMachines = &installedMachines{
+		Machines: make(map[string]*MachineConfig),
+	}
+
 }

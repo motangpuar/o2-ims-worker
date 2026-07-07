@@ -1,6 +1,12 @@
 set timeout=5
 set default=0
 
+{{- if .Installed}}
+menuentry "Boot from local hard disk for" {
+    set root=(hd0)
+    chainloader +1
+}
+{{- else}}
 {{- if eq .OSType "debian"}}
 menuentry "Install {{.OSName}} for {{.ID}}" {
     linux {{.Kernel}} \
@@ -9,4 +15,5 @@ menuentry "Install {{.OSName}} for {{.ID}}" {
         priority=critical
     initrd {{.OSData.Initrd}}
 }
+{{- end}}
 {{- end}}

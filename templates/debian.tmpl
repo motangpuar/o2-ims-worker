@@ -51,4 +51,5 @@ d-i finish-install/reboot_in_progress note
 d-i preseed/late_command string \
     mount --bind /sys/firmware/efi/efivars /target/sys/firmware/efi/efivars; \
     in-target bash -c "efibootmgr --bootorder \$(efibootmgr -v | grep -i 'debian' | grep -oP 'Boot\K[0-9A-F]+' | head -1)"; \
-    umount /target/sys/firmware/efi/efivars
+    umount /target/sys/firmware/efi/efivars \
+    wget -q -O /dev/null "http://{{ .CallbackHost }}/callback?mac={{ .MACAddress }}"^C

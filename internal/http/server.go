@@ -1,6 +1,7 @@
 package http_handler
 
 import "log"
+import "time"
 import "net/http"
 import "encoding/json"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
@@ -98,6 +99,25 @@ func handlePipeline(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleCallback(w http.ResponseWriter, r *http.Request){
+	log.Printf("[HTTP] Request arrive for Callback...")
+	queryParams := r.URL.Query()
+
+	macQuery := queryParams.Get("mac")
+
+	if macQuery == "" {
+		log.Printf("[HTTP] Machines %v", inventory.FetchInstalledMachines())
+	} else {
+		err := inventory.LogInstalledMachine(macQuery, "", time.Now())
+		if err != nil {
+			http.Error(w, "Error "+err.Error(), http.StatusBadRequest)
+		} else {
+			w.Write([]byte("Success!"))
+		}
+	}
+
+}
+
 func Serve() {
 	dir := "assets/http/"
 	mux := http.NewServeMux()
@@ -106,5 +126,6 @@ func Serve() {
 	mux.HandleFunc("/pipeline", handlePipeline)
 	mux.HandleFunc("/test", handleTest)
 	mux.HandleFunc("/inventories", handleInventory)
+	mux.HandleFunc("/callback", handleCallback)
 	log.Fatal(http.ListenAndServe(":8033", mux))
 }

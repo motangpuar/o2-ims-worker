@@ -5,7 +5,7 @@ import "github.com/motangpuar/o2-ims-worker/internal/tftp"
 import "github.com/motangpuar/o2-ims-worker/internal/dhcp"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
 import "github.com/motangpuar/o2-ims-worker/internal/http"
-import "github.com/motangpuar/o2-ims-worker/internal/ansible"
+//import "github.com/motangpuar/o2-ims-worker/internal/ansible"
 import "github.com/fsnotify/fsnotify"
 
 import (
@@ -107,7 +107,7 @@ func main()  {
 		go http_handler.Serve()
 	}
 
-	go ansible_worker.Populate()
+	//go ansible_worker.Populate()
 
 	// Wait for it to stop
 	sigChan := make(chan os.Signal, 1)
