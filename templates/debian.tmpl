@@ -48,8 +48,13 @@ d-i grub-installer/bootdev string default
 # Finish
 d-i finish-install/reboot_in_progress note
 
+# First boot callback service
 d-i preseed/late_command string \
     mount --bind /sys/firmware/efi/efivars /target/sys/firmware/efi/efivars; \
-    in-target bash -c "efibootmgr --bootorder \$(efibootmgr -v | grep -i 'debian' | grep -oP 'Boot\K[0-9A-F]+' | head -1)"; \
-    umount /target/sys/firmware/efi/efivars \
-    wget -q -O /dev/null "http://{{ .CallbackHost }}/callback?mac={{ .MACAddress }}"^C
+    in-target bash -c "efibootmgr --bootnext \$(efibootmgr -v | grep -i 'debian' | grep -oP 'Boot\K[0-9A-F]+' | head -1)"; \
+    umount /target/sys/firmware/efi/efivars; \
+    printf '#!/bin/bash\nwget -q -O /dev/null "http://{{ .CallbackHost }}/ansible?mac={{ .MACAddress }}"\nrm -f /etc/first-boot-pending\nsystemctl disable first-boot.service\n' > /target/usr/local/bin/first-boot.sh; \
+    chmod +x /target/usr/local/bin/first-boot.sh; \
+    printf '[Unit]\nDescription=First Boot Ansible Trigger\nAfter=network-online.target\nWants=network-online.target\nConditionPathExists=/etc/first-boot-pending\n\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/first-boot.sh\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n' > /target/etc/systemd/system/first-boot.service; \
+    touch /target/etc/first-boot-pending; \
+    in-target systemctl enable first-boot.service

@@ -40,10 +40,10 @@ func writeTemp(pattern string, data []byte, perm os.FileMode)(string, func()){
 }
 
 
-func Populate() {
+func Populate(targetIP, macAddress string) {
 	// Debian As Target
-	targetIP := "192.168.99.202"
-	macAddress := "52:54:00:53:c6:2c"
+	//targetIP := "192.168.99.202"
+	//macAddress := "52:54:00:53:c6:2c"
 
 	// Dummy SSH Key
 	sshKey, _ := os.ReadFile("assets/keys/test_provisioner")
@@ -54,7 +54,7 @@ func Populate() {
 	}
 	log.Printf("[ANSIBLE] Ansible Template %s", machine.machineType)
 
-	playbookFile, cleanupPB := writeTemp("playbook-*-.yaml", playbookYAML, 0644)
+	playbookFile, cleanupPB := writeTemp("playbook-*.yaml", playbookYAML, 0644)
 	defer cleanupPB()
 
 	keyFile, cleanupKF := writeTemp("id_ed25519-*", sshKey, 0600)
@@ -65,6 +65,7 @@ func Populate() {
 		Inventory: targetIP+",",
 		User: "debian",
 		PrivateKey: keyFile,
+		SSHExtraArgs:  "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
 	}
 
 	opts.AddExtraVar("mac_address", macAddress)

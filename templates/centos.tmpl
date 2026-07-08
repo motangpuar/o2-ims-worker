@@ -1,0 +1,48 @@
+# CentOS Kickstart
+text
+reboot
+
+# Locale
+lang {{ .Locale }}
+keyboard {{ .Keymap }}
+timezone {{ .Timezone }} --utc
+
+# Network
+network --bootproto=dhcp --device={{ .Interface }} --hostname={{ .Hostname }} --activate
+
+# Auth
+rootpw --lock
+user --name={{ .Username }} --gecos="{{ .UserFullname }}" --password={{ .PasswordHash }} --iscrypted --groups=wheel
+
+# Disk
+ignoredisk --only-use={{ .DiskDevice }}
+autopart --type=plain
+clearpart --all --initlabel --drives={{ .DiskDevice }}
+
+# Bootloader
+bootloader --location=mbr --boot-drive={{ .DiskDevice }}
+
+# Packages
+%packages --ignoremissing
+@^minimal-environment
+curl
+wget
+openssh-server
+efibootmgr
+{{ .ExtraPackages }}
+%end
+
+# EFI boot order and first boot service
+%post --erroronfail
+mount -t efivarfs efivarfs /sys/firmware/efi/efivars || true
+DISK_ENTRY=$(efibootmgr -v | grep -i 'centos\|grub' | grep -oP 'Boot\K[0-9A-F]+' | head -1)
+efibootmgr --bootnext $DISK_ENTRY || true
+
+printf '[Unit]\nDescription=First Boot Ansible Trigger\nAfter=network-online.target\nWants=network-online.target\nConditionPathExists=/etc/first-boot-pending\n\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/first-boot.sh\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n' > /etc/systemd/system/first-boot.service
+
+printf '#!/bin/bash\nwget -q -O /dev/null "http://{{ .CallbackHost }}/ansible?mac={{ .MACAddress }}"\nrm -f /etc/first-boot-pending\nsystemctl disable first-boot.service\n' > /usr/local/bin/first-boot.sh
+
+chmod +x /usr/local/bin/first-boot.sh
+touch /etc/first-boot-pending
+systemctl enable first-boot.service
+%end

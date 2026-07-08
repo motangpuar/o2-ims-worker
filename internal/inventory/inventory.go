@@ -113,6 +113,7 @@ func Generate(m string, t string) {
 		targetMachine.OSType=t
 		targetMachine.Kernel="stream10/vmlinuz"
 		targetMachine.OSData=osDetails
+		genCentOSSeed(macAsID, m)
 	case "ubuntu":
 		osDetails = UbuntuSpecific{
 			IP: "dhcp",
@@ -127,6 +128,7 @@ func Generate(m string, t string) {
 		targetMachine.OSType=t
 		targetMachine.Kernel="ubuntu/linux"
 		targetMachine.OSData=osDetails
+		genUbuntuSeed(macAsID, m)
 	case "debian":
 		osDetails = DebianSpecific{
 			Initrd: "debian/initrd.gz",
@@ -136,6 +138,8 @@ func Generate(m string, t string) {
 		targetMachine.OSType=t
 		targetMachine.Kernel="debian/linux"
 		targetMachine.OSData=osDetails
+
+		// Generate Debian PreSeed
 		genDebianSeed(macAsID, m)
 	}
 

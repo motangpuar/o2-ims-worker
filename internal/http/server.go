@@ -6,6 +6,7 @@ import "net/http"
 import "encoding/json"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
 import "github.com/motangpuar/o2-ims-worker/internal/inventory"
+import "github.com/motangpuar/o2-ims-worker/internal/ansible"
 import "slices"
 
 type pipeLine struct {
@@ -118,6 +119,23 @@ func handleCallback(w http.ResponseWriter, r *http.Request){
 
 }
 
+func handleAnsible(w http.ResponseWriter, r *http.Request){
+	log.Printf("[HTTP] Request arrive for Ansible")
+
+	queryParams := r.URL.Query()
+	macQuery := queryParams.Get("mac")
+
+	if macQuery == "" {
+		log.Printf("[HTTP] Ansible Options")
+	} else {
+		value, exist := filedata.Gather().Clients[macQuery]
+		if exist != true {
+			return
+		}
+		ansible_worker.Populate(value.OfferIP(), macQuery)
+	}
+}
+
 func Serve() {
 	dir := "assets/http/"
 	mux := http.NewServeMux()
@@ -127,5 +145,6 @@ func Serve() {
 	mux.HandleFunc("/test", handleTest)
 	mux.HandleFunc("/inventories", handleInventory)
 	mux.HandleFunc("/callback", handleCallback)
+	mux.HandleFunc("/ansible", handleAnsible)
 	log.Fatal(http.ListenAndServe(":8033", mux))
 }
