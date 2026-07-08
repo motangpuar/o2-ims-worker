@@ -21,6 +21,16 @@ type template struct {
 	machineType string
 }
 
+type AnsibleInfo struct {
+	KubeconfigPath string
+}
+
+var PtrAnsibleInfi *AnsibleInfo
+
+func GetInfo() *AnsibleInfo {
+	return PtrAnsibleInfi
+}
+
 func writeTemp(pattern string, data []byte, perm os.FileMode)(string, func()){
 	f,err := os.CreateTemp("", pattern)
 	if err != nil {
@@ -77,6 +87,11 @@ func Populate(targetIP, macAddress string) {
 	}
 
 	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", "kubeconfig-target.yaml")
+
+	PtrAnsibleInfi = &AnsibleInfo{
+		KubeconfigPath: kubeconfigDest,
+	}
+	
 	log.Printf("[ANSIBLE] Target path: %s", kubeconfigDest)
 
 	opts.AddExtraVar("kubeconfig_dest", kubeconfigDest)
@@ -97,6 +112,19 @@ func Populate(targetIP, macAddress string) {
 		return
 	}
 
+}
+
+func InitAnsible() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Printf("[ANSIBLE] Failed to find path: %v", err)
+		return
+	}
+	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", "kubeconfig-target.yaml")
+
+	PtrAnsibleInfi = &AnsibleInfo{
+		KubeconfigPath: kubeconfigDest,
+	}
 }
 
 func Gather() {

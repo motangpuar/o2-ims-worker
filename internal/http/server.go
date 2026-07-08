@@ -1,5 +1,6 @@
 package http_handler
 
+import "context"
 import "log"
 import "time"
 import "net/http"
@@ -7,6 +8,7 @@ import "encoding/json"
 import "github.com/motangpuar/o2-ims-worker/internal/db"
 import "github.com/motangpuar/o2-ims-worker/internal/inventory"
 import "github.com/motangpuar/o2-ims-worker/internal/ansible"
+import "github.com/motangpuar/o2-ims-worker/internal/kubernetes"
 import "slices"
 
 type pipeLine struct {
@@ -15,6 +17,8 @@ type pipeLine struct {
 	IP string `json:"ip"`
 	OS string `json:"os"`
 }
+
+var httpContext *context.Context
 
 func handleTest(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[HTTP] Request arrive for Test Path...")
@@ -136,7 +140,49 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 	}
 }
 
-func Serve() {
+func handleKubernetes(w http.ResponseWriter, r *http.Request){
+	ansibleInfo := ansible_worker.GetInfo()
+	kc, err := kubeclient.New(ansibleInfo.KubeconfigPath)
+	if err != nil {
+		log.Printf("[HTTP] Failed to established kubernetes connection")
+		return
+	}
+
+	info,err := kc.ClusterInfo(*httpContext)
+	if err != nil {
+		log.Printf("[HTTP] Failed to query kubernetes") 
+		return
+	}
+
+	log.Printf("[HTTP] Kubernetes Context: version %s, nodes %d, namespaces %v", info.ServerVersion, info.NodeCount, info.Namespaces)
+
+	nodes,err := kc.Nodes(*httpContext)
+	if err != nil {
+		log.Printf("[HTTP] Failed to query nodes")
+		return
+	}
+
+	for _, n := range(nodes) {
+		log.Printf("[HTTP] node %s, status %s, cpu %s, mem %s, ip: %s",
+		n.Name, n.Status, n.CPUAllocatable, n.MemoryAllocatable, n.InternalIP)
+	}
+
+	var payload []any
+	responseBody := append(payload, nodes, info)
+	
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(responseBody)
+	if err != nil {
+		log.Printf("Failed to send Response")
+		http.Error(w, "Error Detected", http.StatusInternalServerError)
+		return
+	}
+}
+
+func Serve(ctx context.Context) {
+	// Populate global context
+	httpContext = &ctx
+
 	dir := "assets/http/"
 	mux := http.NewServeMux()
 	filehandler := http.StripPrefix("/", http.FileServer(http.Dir(dir)))
@@ -146,5 +192,6 @@ func Serve() {
 	mux.HandleFunc("/inventories", handleInventory)
 	mux.HandleFunc("/callback", handleCallback)
 	mux.HandleFunc("/ansible", handleAnsible)
+	mux.HandleFunc("/kubernetes", handleKubernetes)
 	log.Fatal(http.ListenAndServe(":8033", mux))
 }

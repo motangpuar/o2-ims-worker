@@ -1,21 +1,25 @@
 package main
 
-import "github.com/motangpuar/o2-ims-worker/internal/config"
-import "github.com/motangpuar/o2-ims-worker/internal/tftp"
-import "github.com/motangpuar/o2-ims-worker/internal/dhcp"
-import "github.com/motangpuar/o2-ims-worker/internal/db"
-import "github.com/motangpuar/o2-ims-worker/internal/http"
-//import "github.com/motangpuar/o2-ims-worker/internal/ansible"
-import "github.com/fsnotify/fsnotify"
-
 import (
-	"log"
+	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	//"time"
+
+	"github.com/fsnotify/fsnotify"
+	ansible_worker "github.com/motangpuar/o2-ims-worker/internal/ansible"
+	"github.com/motangpuar/o2-ims-worker/internal/config"
+	"github.com/motangpuar/o2-ims-worker/internal/db"
+	"github.com/motangpuar/o2-ims-worker/internal/dhcp"
+	"github.com/motangpuar/o2-ims-worker/internal/http"
+	"github.com/motangpuar/o2-ims-worker/internal/tftp"
 )
+
+//import "github.com/motangpuar/o2-ims-worker/internal/ansible"
+
+//"time"
 
 func main()  {
 
@@ -93,6 +97,10 @@ func main()  {
 	log.Println(tftpCfgPtr.RootDir())
 	log.Println()
 
+
+	ctx,cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if *disableTFTP != true {
 		e := tftp.NewEngine(tftpCfgPtr)
 		go e.Start()
@@ -104,15 +112,17 @@ func main()  {
 	}
 
 	if *disableHTTP != true {
-		go http_handler.Serve()
+		go http_handler.Serve(ctx)
 	}
 
 	//go ansible_worker.Populate()
+	ansible_worker.InitAnsible()
 
 	// Wait for it to stop
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
+	cancel()
 
 }
 
