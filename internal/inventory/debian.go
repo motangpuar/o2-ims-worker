@@ -1,6 +1,8 @@
 package inventory
 
 import (
+	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"text/template"
@@ -21,6 +23,7 @@ type BaseConfig struct {
 	MirrorDir    string
 	CallbackHost string
 	MACAddress   string
+	SSHPubKey    string
 }
 
 // OS Specific
@@ -47,9 +50,37 @@ type UbuntuConfig struct {
 	ExtraPackages []string
 }
 
-// Generators
 
+func readSSHKey(m string) (map[string]string, error) {
+	data, err := os.Open("assets/keys/test_provisioner.pub")
+	if err != nil {
+		log.Printf("Error reading SSH keys %v", err)
+		return nil, fmt.Errorf("Error reading SSH keys") 
+	}
+
+	defer data.Close()
+	scanner := bufio.NewScanner(data)
+	if scanner.Err() != nil {
+		log.Fatalf("Failed to scan SSH key file: %s", err)
+	}
+
+	sshChunk := make(map[string]string)
+	for scanner.Scan(){
+		log.Printf("%s", scanner.Text())
+		sshChunk[m] = scanner.Text()
+	}
+
+	return  sshChunk, nil
+}
+
+// Generators
 func genDebianSeed(id string, mac string) {
+
+	sshKey,err :=  readSSHKey(mac)
+	if err != nil {
+		log.Printf("Error read SSH key: %v", err)
+	}
+
 	currentConfig := DebianConfig{
 		BaseConfig: BaseConfig{
 			Locale:       "en_US.UTF-8",
@@ -64,6 +95,7 @@ func genDebianSeed(id string, mac string) {
 			MirrorDir:    "/debian",
 			CallbackHost: "192.168.99.1:8033",
 			MACAddress:   mac,
+			SSHPubKey: sshKey[mac],
 		},
 		Interface:     "auto",
 		DiskDevice:    "/dev/sda",
@@ -92,6 +124,10 @@ func genDebianSeed(id string, mac string) {
 }
 
 func genCentOSSeed(id string, mac string) {
+	sshKey,err :=  readSSHKey(mac)
+	if err != nil {
+		log.Printf("Error read SSH key: %v", err)
+	}
 	currentConfig := CentOSConfig{
 		BaseConfig: BaseConfig{
 			Locale:       "en_US.UTF-8",
@@ -106,6 +142,7 @@ func genCentOSSeed(id string, mac string) {
 			MirrorDir:    "",
 			CallbackHost: "192.168.99.1:8033",
 			MACAddress:   mac,
+			SSHPubKey: sshKey[mac],
 		},
 		Interface:     "eth0",
 		DiskDevice:    "/dev/sda",
@@ -132,6 +169,10 @@ func genCentOSSeed(id string, mac string) {
 }
 
 func genUbuntuSeed(id string, mac string) {
+	sshKey,err :=  readSSHKey(mac)
+	if err != nil {
+		log.Printf("Error read SSH key: %v", err)
+	}
 	currentConfig := UbuntuConfig{
 		BaseConfig: BaseConfig{
 			Locale:       "en_US.UTF-8",
@@ -146,6 +187,7 @@ func genUbuntuSeed(id string, mac string) {
 			MirrorDir:    "",
 			CallbackHost: "192.168.99.1:8033",
 			MACAddress:   mac,
+			SSHPubKey: sshKey[mac],
 		},
 		Interface:     "ens3",
 		ExtraPackages: []string{"wget", "openssh-server", "efibootmgr"},

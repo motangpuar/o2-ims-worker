@@ -12,7 +12,7 @@ network --bootproto=dhcp --device={{ .Interface }} --hostname={{ .Hostname }} --
 
 # Auth
 rootpw --lock
-user --name={{ .Username }} --gecos="{{ .UserFullname }}" --password={{ .PasswordHash }} --iscrypted --groups=wheel
+user --name={{ .Username }} --gecos="{{ .UserFullname }}" --password={{ .PasswordHash }} --iscrypted --groups=wheel --ssh-key="{{ .SSHPubKey }}"
 
 # Disk
 ignoredisk --only-use={{ .DiskDevice }}

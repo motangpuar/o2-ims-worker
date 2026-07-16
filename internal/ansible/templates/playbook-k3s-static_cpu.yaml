@@ -1,0 +1,86 @@
+- hosts: all
+  become: true
+  vars:
+    k3s_config:
+      cpu_manager_policy: "{{ .CPUManagerPolicy }}"
+      system_reserved_cpu: "{{ .SystemReservedCPU }}"
+      kube_reserved_cpu: "{{ .KubeReservedCPU }}"
+      system_reserved_mem: "{{ .SystemReservedMem }}"
+      kube_reserved_mem: "{{ .KubeReservedMem }}"
+
+  tasks:
+    - name: remove cpu manager state if exists
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/agent/cpu_manager_state
+        state: absent
+
+    - name: create k3s config directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: "0755"
+
+    - name: write k3s config
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        mode: "0644"
+        content: |
+          kubelet-arg:
+            - "cpu-manager-policy={{ "{{" }} k3s_config.cpu_manager_policy {{ "}}" }}"
+            - "cpu-manager-reconcile-period=5s"
+            - "system-reserved=cpu={{ "{{" }} k3s_config.system_reserved_cpu {{ "}}" }},memory={{ "{{" }} k3s_config.system_reserved_mem {{ "}}" }}"
+            - "kube-reserved=cpu={{ "{{" }} k3s_config.kube_reserved_cpu {{ "}}" }},memory={{ "{{" }} k3s_config.kube_reserved_mem {{ "}}" }}"
+            - "topology-manager-policy=single-numa-node"
+          disable:
+            - {{ .DisableComponents }}
+
+    - name: download k3s installer
+      ansible.builtin.get_url:
+        url: https://get.k3s.io
+        dest: /tmp/k3s-install.sh
+        mode: "0755"
+
+    - name: install k3s
+      ansible.builtin.command:
+        cmd: /tmp/k3s-install.sh
+      environment:
+        INSTALL_K3S_EXEC: "server"
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: wait for k3s to be ready
+      ansible.builtin.command:
+        cmd: k3s kubectl get nodes
+      register: node_status
+      retries: 10
+      delay: 10
+      until: "'Ready' in node_status.stdout"
+
+    - name: verify cpu manager policy
+      ansible.builtin.command:
+        cmd: cat /var/lib/rancher/k3s/agent/cpu_manager_state
+      register: cpu_state
+      ignore_errors: true
+
+    - name: show cpu manager state
+      ansible.builtin.debug:
+        msg: "{{ "{{" }} cpu_state.stdout {{ "}}" }}"
+
+    - name: patch kubeconfig server address
+      ansible.builtin.replace:
+        path: /etc/rancher/k3s/k3s.yaml
+        regexp: '127\.0\.0\.1'
+        replace: "{{ "{{" }} ansible_host {{ "}}" }}"
+
+    - name: copy kubeconfig to readable location
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: /tmp/k3s-kubeconfig.yaml
+        remote_src: true
+        mode: "0644"
+
+    - name: fetch kubeconfig
+      ansible.builtin.fetch:
+        src: /tmp/k3s-kubeconfig.yaml
+        dest: "{{ "{{" }} kubeconfig_dest {{ "}}" }}"
+        flat: true

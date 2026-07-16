@@ -10,7 +10,6 @@ type TFTPConfig struct {
 	bindAddr  string
 	bindPort  int
 	blockSize int  
-	rootDir   string 
 }
 
 type DHCPConfig struct {
@@ -48,7 +47,6 @@ func Gather() *Master {
 		bindAddr:  "0.0.0.0",
 		bindPort:  69,
 		blockSize: 512  ,
-		rootDir:   "/tmp/tftp/",
 	}
 	
 	//TFTP  Forsaken declaration
@@ -72,10 +70,6 @@ func Gather() *Master {
 		if intVal,err := strconv.Atoi(val); err == nil {
 			tftpConfig.blockSize = intVal
 		}
-	}
-
-	if val :=  os.Getenv("TFTP_ROOT_DIR"); val != "" {
-		tftpConfig.rootDir = val
 	}
 
 	//
@@ -170,5 +164,4 @@ func (t *TFTPConfig) BindAddr() string { return t.bindAddr }
 func (t *TFTPConfig) Enabled() bool { return t.enabled }
 func (t *TFTPConfig) BindPort() int { return t.bindPort }
 func (t *TFTPConfig) BlockSize() int { return t.blockSize }
-func (t *TFTPConfig) RootDir() string { return t.rootDir }
 

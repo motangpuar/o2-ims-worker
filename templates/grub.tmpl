@@ -2,16 +2,25 @@ set timeout=5
 set default=0
 
 {{- if .Installed}}
-menuentry "Boot from local hard disk for" {
+menuentry "Boot from local hard disk for {{.ID}}" {
     insmod part_gpt
     insmod fat
     insmod chain
     search --set=root --no-floppy --file /EFI/debian/grubx64.efi
     chainloader /EFI/debian/grubx64.efi
-
 }
 {{- else}}
-{{- if eq .OSType "debian"}}
+{{- if eq .OSType "ubuntu"}}
+menuentry "Install {{.OSName}} for {{.ID}}" {
+    linux {{.Kernel}} ip={{.OSData.IP}} url={{.OSData.ISOUrl}} cloud-config-url=/dev/null ds=nocloud-net;s={{.OSData.DS}} autoinstall ---
+    initrd {{.OSData.Initrd}}
+}
+{{- else if eq .OSType "centos"}}
+menuentry "Install {{.OSName}} for {{.ID}}" {
+    linux {{.Kernel}} inst.ks={{.OSData.InstallKickStartURL}} ip={{.OSData.IP}} inst.repo={{.OSData.InstallRepoURL}}
+    initrd {{.OSData.Initrd}}
+}
+{{- else if eq .OSType "debian"}}
 menuentry "Install {{.OSName}} for {{.ID}}" {
     linux {{.Kernel}} \
         auto=true \
@@ -19,5 +28,13 @@ menuentry "Install {{.OSName}} for {{.ID}}" {
         priority=critical
     initrd {{.OSData.Initrd}}
 }
+{{- else}}
+menuentry "Unknown OS Type Configured" {
+    echo "No valid OS type configured"
+}
 {{- end}}
 {{- end}}
+
+menuentry "Boot from Local Disk" {
+    exit
+}

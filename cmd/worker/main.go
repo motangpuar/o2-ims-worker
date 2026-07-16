@@ -94,7 +94,6 @@ func main()  {
 	log.Println(tftpCfgPtr.BindAddr())
 	log.Println(tftpCfgPtr.BindPort())
 	log.Println(tftpCfgPtr.BlockSize())
-	log.Println(tftpCfgPtr.RootDir())
 	log.Println()
 
 

@@ -2,7 +2,6 @@ package tftp
 
 import "log"
 import "os"
-import "path/filepath"
 import "github.com/pin/tftp/v3"
 import "io"
 import "time"
@@ -14,7 +13,6 @@ type Reader interface {
 	Enabled() bool
 	BindPort() int
 	BlockSize() int
-	RootDir() string
 }
 
 // Learn more about this shit
@@ -46,11 +44,14 @@ func readHandler(filename string, rf io.ReaderFrom) error {
 		filename = filename[1:]
 	}
 
-	file, err := os.Open("./assets/generic/"+filename)
+	// Should be ./assets/tftp/{bios,efi}/filename
+	file, err := os.Open("./assets/tftp/"+filename)
 
 	if err != nil {
 		log.Println("Failed to Open File:", filename)
+		return err
 	}
+	log.Println("[TFTP] Accessing File:", filename)
 
 	// Deffer
 	defer file.Close()
@@ -66,24 +67,8 @@ func (e *Engine) Start() {
 	log.Println(e.cfg.BindAddr())
 	log.Println(e.cfg.BindPort())
 
-	rootDir := e.cfg.RootDir()
 	tftpAddr := e.cfg.BindAddr()
 	tftpPort := e.cfg.BindPort()
-
-	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		log.Fatalf("TFTP Directory Error: %s", rootDir)
-	}
-
-	// Internal Handler
-	filename := "pxelinux.0"
-
-	if filename[0] == '/' {
-		filename = filename[1:]
-	}
-
-	fullPath := filepath.Join(rootDir, filename)
-
-	log.Println(fullPath)
 
 	// Start TFTP Hook
 	s := tftp.NewServer(readHandler, nil)

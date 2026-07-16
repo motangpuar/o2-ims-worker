@@ -104,20 +104,20 @@ func Generate(m string, t string) {
 	switch t {
 	case "centos":
 		osDetails = CentOSSpecific{
-			Initrd: "stream10/initrd.img",
+			Initrd: "/images/stream10/initrd.img",
 			IP: "dhcp",
 			InstallKickStartURL: "http://192.168.99.1:8033/centos10.ks",
 			InstallRepoURL: "http://192.168.99.1:8033/mirrors/stream10/",
 		}
 		targetMachine.OSName="Centos Stream 10"
 		targetMachine.OSType=t
-		targetMachine.Kernel="stream10/vmlinuz"
+		targetMachine.Kernel="/images/stream10/vmlinuz"
 		targetMachine.OSData=osDetails
 		genCentOSSeed(macAsID, m)
 	case "ubuntu":
 		osDetails = UbuntuSpecific{
 			IP: "dhcp",
-			Initrd: "ubuntu/initrd",
+			Initrd: "/images/ubuntu/initrd",
 			//ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-desktop-amd64.iso",
 			ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-live-server-amd64.iso",
 			CloudConfigURL: "/dev/null",
@@ -126,17 +126,17 @@ func Generate(m string, t string) {
 		}
 		targetMachine.OSName="Ubuntu 20.04"
 		targetMachine.OSType=t
-		targetMachine.Kernel="ubuntu/linux"
+		targetMachine.Kernel="/images/ubuntu/linux"
 		targetMachine.OSData=osDetails
 		genUbuntuSeed(macAsID, m)
 	case "debian":
 		osDetails = DebianSpecific{
-			Initrd: "debian/initrd.gz",
+			Initrd: "/images/debian/initrd.gz",
 			PreeSeedURL: "http://192.168.99.1:8033/debian/preseed-"+macAsID+".cfg",
 		}
 		targetMachine.OSName="Debian 12"
 		targetMachine.OSType=t
-		targetMachine.Kernel="debian/linux"
+		targetMachine.Kernel="/images/debian/linux"
 		targetMachine.OSData=osDetails
 
 		// Generate Debian PreSeed
@@ -162,10 +162,10 @@ func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
 	switch mode {
 	case "bios":
 		templateFile = "templates/main.tmpl"
-		dumpFile = "assets/generic/pxelinux.cfg/01-"+strings.ReplaceAll(m, ":", "-")
+		dumpFile = "assets/tftp/bios/pxelinux.cfg/01-"+strings.ReplaceAll(m, ":", "-")
 	case "efi":
 		templateFile = "templates/grub.tmpl"
-		dumpFile = "assets/generic/grub.cfg-01-"+strings.ReplaceAll(m, ":", "-")
+		dumpFile = "assets/tftp/efi/grub/x86_64-efi/grub.cfg-01-"+strings.ReplaceAll(m, ":", "-")
 	}
 	log.Printf("Value: mode %s for state %v", mode, targetMachine.Installed)
 	tmpl, err := template.ParseFiles(templateFile)

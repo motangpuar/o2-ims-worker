@@ -107,4 +107,14 @@ mirror_debian:
 	podman unshare chown -R $(shell id -u):$(shell id -g) $(CURDIR)/$(MIRROR_DIR)
 
 .PHONY: build build_structure all sync clean help mirror_debian
+
+populate_repo:
+	bash scripts/populate-repo.sh
+
+populate_kernel:
+	bash scripts/populate-net-kernel.sh
+
+populate_pxe:
+	bash scripts/populate-pxe.sh
+
 all: build build_client build_structure

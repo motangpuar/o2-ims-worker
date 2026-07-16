@@ -31,6 +31,18 @@ func GetInfo() *AnsibleInfo {
 	return PtrAnsibleInfi
 }
 
+type K3sConfig struct {
+	ServerIP          string
+	DisableComponents string
+	// CPU
+	CPUManagerPolicy  string // static or none
+	SystemReservedCPU string // e.g. "0-1"
+	KubeReservedCPU   string // e.g. "2"
+	// Memory
+	SystemReservedMem string // e.g. "512Mi"
+	KubeReservedMem   string // e.g. "256Mi"
+}
+
 func writeTemp(pattern string, data []byte, perm os.FileMode)(string, func()){
 	f,err := os.CreateTemp("", pattern)
 	if err != nil {
@@ -45,15 +57,10 @@ func writeTemp(pattern string, data []byte, perm os.FileMode)(string, func()){
 	log.Printf("[ANSIBLE] Temp File name is %s", f.Name())
 
 	return f.Name(), func() { os.Remove(f.Name()) }
-	//return f.Name(), func() { log.Printf("Write Temp ...")}
 
 }
 
-
 func Populate(targetIP, macAddress string) {
-	// Debian As Target
-	//targetIP := "192.168.99.202"
-	//macAddress := "52:54:00:53:c6:2c"
 
 	// Dummy SSH Key
 	sshKey, _ := os.ReadFile("assets/keys/test_provisioner")

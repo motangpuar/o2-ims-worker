@@ -54,3 +54,5 @@ autoinstall:
   ssh:
     install-server: true
     allow-pw: false
+    authorized-keys:
+      - {{ .SSHPubKey }}
