@@ -121,7 +121,7 @@ func Generate(m string, t string) {
 			//ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-desktop-amd64.iso",
 			ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-live-server-amd64.iso",
 			CloudConfigURL: "/dev/null",
-			DS: "http://192.168.99.1:8033/ubuntu/autoinstall/",
+			DS: "http://192.168.99.1:8033/ubuntu/"+macAsID+"/",
 			RootPath: "/dev/ram0",
 		}
 		targetMachine.OSName="Ubuntu 20.04"

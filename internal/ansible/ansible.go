@@ -56,11 +56,12 @@ func writeTemp(pattern string, data []byte, perm os.FileMode)(string, func()){
 
 	log.Printf("[ANSIBLE] Temp File name is %s", f.Name())
 
-	return f.Name(), func() { os.Remove(f.Name()) }
+	return f.Name(), func() { log.Printf("Not Delete") }
+	//return f.Name(), func() { os.Remove(f.Name()) }
 
 }
 
-func Populate(targetIP, macAddress string) {
+func Populate(targetIP, macAddress, userName string) {
 
 	// Dummy SSH Key
 	sshKey, _ := os.ReadFile("assets/keys/test_provisioner")
@@ -78,11 +79,13 @@ func Populate(targetIP, macAddress string) {
 
 	defer cleanupKF()
 
+	os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "False")
 	opts := &playbook.AnsiblePlaybookOptions{
 		Inventory: targetIP+",",
-		User: "debian",
+		User: userName,
 		PrivateKey: keyFile,
-		SSHExtraArgs:  "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null",
+		SSHExtraArgs:  "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -tt",
+		BecomeMethod: "sudo",
 	}
 
 	opts.AddExtraVar("mac_address", macAddress)
@@ -101,8 +104,10 @@ func Populate(targetIP, macAddress string) {
 	
 	log.Printf("[ANSIBLE] Target path: %s", kubeconfigDest)
 
+	opts.AddExtraVar("ansible_host", targetIP)
 	opts.AddExtraVar("kubeconfig_dest", kubeconfigDest)
 	opts.AddExtraVar("ansible_become_pass", "password")
+	opts.AddExtraVar("ansible_become_exe", "sudo.ws")
 
 	cmd := playbook.NewAnsiblePlaybookCmd(
 		playbook.WithPlaybooks(playbookFile),

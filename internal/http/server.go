@@ -133,10 +133,11 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 		log.Printf("[HTTP] Ansible Options")
 	} else {
 		value, exist := filedata.Gather().Clients[macQuery]
+		username := value.OSType()
 		if exist != true {
 			return
 		}
-		ansible_worker.Populate(value.OfferIP(), macQuery)
+		ansible_worker.Populate(value.OfferIP(), macQuery, username)
 	}
 }
 

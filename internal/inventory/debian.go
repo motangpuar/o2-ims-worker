@@ -193,8 +193,9 @@ func genUbuntuSeed(id string, mac string) {
 		ExtraPackages: []string{"wget", "openssh-server", "efibootmgr"},
 	}
 
+	os.MkdirAll("assets/http/ubuntu/"+id, 0755)
 	templateFile := "templates/ubuntu.tmpl"
-	dumpFile := "assets/http/ubuntu/user-data-" + id
+	dumpFile := "assets/http/ubuntu/"+id+"/user-data"
 
 	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {
@@ -211,7 +212,7 @@ func genUbuntuSeed(id string, mac string) {
 		log.Fatalf("[FAIL] failed to execute ubuntu template: %v", err)
 	}
 
-	metaFile := "assets/http/ubuntu/meta-data-" + id
+	metaFile := "assets/http/ubuntu/"+id+"/meta-data"
 	if err := os.WriteFile(metaFile, []byte(""), 0644); err != nil {
 		log.Fatalf("[FAIL] failed to create ubuntu meta-data: %v", err)
 	}

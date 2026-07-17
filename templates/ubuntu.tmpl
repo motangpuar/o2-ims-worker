@@ -1,48 +1,38 @@
 #cloud-config
 autoinstall:
   version: 1
-
   locale: {{ .Locale }}
-
   keyboard:
     layout: {{ .Keymap }}
-
-  identity:
-    hostname: {{ .Hostname }}
-    username: {{ .Username }}
-    password: {{ .PasswordHash }}
-    realname: {{ .UserFullname }}
-
   network:
-    network:
-      version: 2
-      ethernets:
-        {{ .Interface }}:
-          dhcp4: true
-
+    version: 2
+    ethernets:
+      all-en:
+        match:
+          name: "e*"
+        dhcp4: true
   storage:
     layout:
       name: direct
-    grub:
-      reorder_uefi: false
-
+  identity:
+    hostname: {{ .Hostname }}
+    username: {{ .Username }}
+    password: "{{ .PasswordHash }}"
+    realname: {{ .UserFullname }}
+  ssh:
+    install-server: true
+    allow-pw: false
+    authorized-keys:
+      - {{ .SSHPubKey }}
   packages:
-    - curl
-    - wget
-    - openssh-server
-    - efibootmgr
-    - {{ .ExtraPackages }}
-
-  package_update: true
-  package_upgrade: true
-
+    {{- range .ExtraPackages }}
+    - {{ . }}
+    {{- end }}
+  updates: security
   late-commands:
+    - curl -sf "http://{{ .CallbackHost }}/callback?mac={{ .MACAddress }}" || true
     - mount -t efivarfs efivarfs /target/sys/firmware/efi/efivars || true
-    - |
-      curtin in-target --target=/target bash -c "
-        DISK_ENTRY=\$(efibootmgr -v | grep -i 'ubuntu\|grub' | grep -oP 'Boot\K[0-9A-F]+' | head -1)
-        efibootmgr --bootnext \$DISK_ENTRY || true
-      "
+    - curtin in-target --target=/target bash -c "DISK_ENTRY=\$(efibootmgr -v | grep -i 'ubuntu\|grub' | grep -oP 'Boot\K[0-9A-F]+' | head -1) && efibootmgr --bootnext \$DISK_ENTRY || true" || true
     - |
       printf '[Unit]\nDescription=First Boot Ansible Trigger\nAfter=network-online.target\nWants=network-online.target\nConditionPathExists=/etc/first-boot-pending\n\n[Service]\nType=oneshot\nExecStart=/usr/local/bin/first-boot.sh\nRemainAfterExit=yes\n\n[Install]\nWantedBy=multi-user.target\n' > /target/etc/systemd/system/first-boot.service
     - |
@@ -50,9 +40,3 @@ autoinstall:
     - chmod +x /target/usr/local/bin/first-boot.sh
     - touch /target/etc/first-boot-pending
     - curtin in-target --target=/target systemctl enable first-boot.service
-
-  ssh:
-    install-server: true
-    allow-pw: false
-    authorized-keys:
-      - {{ .SSHPubKey }}

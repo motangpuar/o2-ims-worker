@@ -26,13 +26,26 @@ wget -q --show-progress \
 echo "[SUCCESS] CentOS images fetched"
 
 echo "[INFO] fetching Ubuntu noble"
-wget -q --show-progress \
-    https://releases.ubuntu.com/24.04/netboot/amd64/linux \
-    -O "$IMAGES_DIR/ubuntu/linux"
-wget -q --show-progress \
-    https://releases.ubuntu.com/24.04/netboot/amd64/initrd \
-    -O "$IMAGES_DIR/ubuntu/initrd"
+
+# wget -q --show-progress \
+#     https://releases.ubuntu.com/24.04/netboot/amd64/linux \
+#     -O "$IMAGES_DIR/ubuntu/linux"
+# wget -q --show-progress \
+#     https://releases.ubuntu.com/24.04/netboot/amd64/initrd \
+#     -O "$IMAGES_DIR/ubuntu/initrd"
+
+podman run --name ubuntu-casper \
+    -v "$(pwd)/assets/http/ubuntu/iso:/tmp/iso:ro" \
+    debian:stable \
+    bash -c "apt-get update -q && apt-get install -y p7zip-full && \
+             7z e -y /tmp/iso/ubuntu-26.04-live-server-amd64.iso casper/vmlinuz -o/tmp/casper/ && \
+             7z e -y /tmp/iso/ubuntu-26.04-live-server-amd64.iso casper/initrd -o/tmp/casper/"
+
+podman cp ubuntu-casper:/tmp/casper/vmlinuz assets/tftp/images/ubuntu/linux
+podman cp ubuntu-casper:/tmp/casper/initrd   assets/tftp/images/ubuntu/initrd
+podman rm ubuntu-casper
 echo "[SUCCESS] Ubuntu images fetched"
+
 
 restorecon -Rv assets/tftp/images/ 2>/dev/null || true
 echo "[SUCCESS] all images populated"

@@ -34,6 +34,7 @@ efibootmgr
 
 # EFI boot order and first boot service
 %post --erroronfail
+wget -q -O /dev/null "http://{{ .CallbackHost }}/callback?mac={{ .MACAddress }}"; \
 mount -t efivarfs efivarfs /sys/firmware/efi/efivars || true
 DISK_ENTRY=$(efibootmgr -v | grep -i 'centos\|grub' | grep -oP 'Boot\K[0-9A-F]+' | head -1)
 efibootmgr --bootnext $DISK_ENTRY || true

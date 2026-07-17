@@ -28,6 +28,7 @@ type Client interface {
 	OfferIP() string
 	MACAddress() string
 	BootFileUrl() string
+	OSType() string
 	ToMap() map[string]any
 }
 

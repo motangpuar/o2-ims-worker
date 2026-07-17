@@ -6,13 +6,18 @@ menuentry "Boot from local hard disk for {{.ID}}" {
     insmod part_gpt
     insmod fat
     insmod chain
+    {{- if eq .OSType "debian"}}
     search --set=root --no-floppy --file /EFI/debian/grubx64.efi
     chainloader /EFI/debian/grubx64.efi
+    {{- else if eq .OSType "ubuntu"}}
+    search --set=root --no-floppy --file /EFI/ubuntu/grubx64.efi
+    chainloader /EFI/ubuntu/grubx64.efi
+    {{- end}}
 }
 {{- else}}
 {{- if eq .OSType "ubuntu"}}
 menuentry "Install {{.OSName}} for {{.ID}}" {
-    linux {{.Kernel}} ip={{.OSData.IP}} url={{.OSData.ISOUrl}} cloud-config-url=/dev/null ds=nocloud-net;s={{.OSData.DS}} autoinstall ---
+    linux {{.Kernel}} ip=dhcp url={{.OSData.ISOUrl}} autoinstall "ds=nocloud-net;s={{.OSData.DS}}" cloud-config-url=/dev/null ---
     initrd {{.OSData.Initrd}}
 }
 {{- else if eq .OSType "centos"}}
