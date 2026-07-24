@@ -12,7 +12,7 @@ network --bootproto=dhcp --device={{ .Interface }} --hostname={{ .Hostname }} --
 
 # Auth
 rootpw --lock
-user --name={{ .Username }} --gecos="{{ .UserFullname }}" --password={{ .PasswordHash }} --iscrypted --groups=wheel --ssh-key="{{ .SSHPubKey }}"
+user --name={{ .Username }} --gecos="{{ .UserFullname }}" --password={{ .PasswordHash }} --iscrypted --groups=wheel
 
 # Disk
 ignoredisk --only-use={{ .DiskDevice }}
@@ -34,7 +34,11 @@ efibootmgr
 
 # EFI boot order and first boot service
 %post --erroronfail
+
+# Callback
 wget -q -O /dev/null "http://{{ .CallbackHost }}/callback?mac={{ .MACAddress }}"; \
+
+# GRUB
 mount -t efivarfs efivarfs /sys/firmware/efi/efivars || true
 DISK_ENTRY=$(efibootmgr -v | grep -i 'centos\|grub' | grep -oP 'Boot\K[0-9A-F]+' | head -1)
 efibootmgr --bootnext $DISK_ENTRY || true
@@ -46,4 +50,18 @@ printf '#!/bin/bash\nwget -q -O /dev/null "http://{{ .CallbackHost }}/ansible?ma
 chmod +x /usr/local/bin/first-boot.sh
 touch /etc/first-boot-pending
 systemctl enable first-boot.service
+
+#SSH
+mkdir -p /home/{{ .Username }}/.ssh
+echo '{{ .SSHPubKey }}' > /home/{{ .Username }}/.ssh/authorized_keys
+chown -R {{ .Username }}:{{ .Username }} /home/{{ .Username }}/.ssh
+chmod 700 /home/{{ .Username }}/.ssh
+chmod 600 /home/{{ .Username }}/.ssh/authorized_keys
+
+cat > /etc/modules-load.d/k3s.conf << EOF
+nf_tables
+nf_conntrack
+br_netfilter
+overlay
+EOF
 %end

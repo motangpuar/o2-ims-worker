@@ -14,6 +14,26 @@ CENTOS_VERSION ?= stream10
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
 
+build_structure:
+	mkdir -p assets/ansible
+	mkdir -p assets/http/centos/mirror
+	mkdir -p assets/http/debian
+	mkdir -p assets/http/ubuntu/iso
+	mkdir -p assets/keys
+	mkdir -p assets/tftp/bios/pxelinux.cfg
+	mkdir -p assets/tftp/efi/grub
+	mkdir -p assets/tftp/images/centos
+	mkdir -p assets/tftp/images/debian
+	mkdir -p assets/tftp/images/ubuntu
+
+generate_keys:
+	@if [ -f assets/keys/test_provisioner ]; then \
+		echo "[SKIP] assets/keys/test_provisioner already exists"; \
+	else \
+		ssh-keygen -t ed25519 -f assets/keys/test_provisioner -N "" -C "netboot-provisioner"; \
+		echo "[SUCCESS] generated assets/keys/test_provisioner"; \
+	fi
+
 build:
 	go build -o bin/worker cmd/worker/main.go 
 

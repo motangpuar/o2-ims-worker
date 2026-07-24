@@ -12,6 +12,7 @@ type CentOSSpecific struct {
 	IP string
 	InstallKickStartURL string
 	InstallRepoURL string
+	Stage2 string
 }
 
 type RHELSpecific struct {
@@ -104,14 +105,15 @@ func Generate(m string, t string) {
 	switch t {
 	case "centos":
 		osDetails = CentOSSpecific{
-			Initrd: "/images/stream10/initrd.img",
+			Initrd: "/images/centos/initrd.img",
 			IP: "dhcp",
-			InstallKickStartURL: "http://192.168.99.1:8033/centos10.ks",
-			InstallRepoURL: "http://192.168.99.1:8033/mirrors/stream10/",
+			InstallKickStartURL: "http://192.168.99.1:8033/centos/"+macAsID+"/install.ks",
+			InstallRepoURL: "http://192.168.99.1:8033/centos/mirror/",
+			Stage2: "http://192.168.99.1:8033/centos/mirror",
 		}
 		targetMachine.OSName="Centos Stream 10"
 		targetMachine.OSType=t
-		targetMachine.Kernel="/images/stream10/vmlinuz"
+		targetMachine.Kernel="/images/centos/vmlinuz"
 		targetMachine.OSData=osDetails
 		genCentOSSeed(macAsID, m)
 	case "ubuntu":

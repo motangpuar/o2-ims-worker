@@ -12,6 +12,9 @@ menuentry "Boot from local hard disk for {{.ID}}" {
     {{- else if eq .OSType "ubuntu"}}
     search --set=root --no-floppy --file /EFI/ubuntu/grubx64.efi
     chainloader /EFI/ubuntu/grubx64.efi
+    {{- else if eq .OSType "centos"}}
+    search --set=root --no-floppy --file /EFI/centos/grubx64.efi
+    chainloader /EFI/centos/grubx64.efi
     {{- end}}
 }
 {{- else}}
@@ -22,7 +25,7 @@ menuentry "Install {{.OSName}} for {{.ID}}" {
 }
 {{- else if eq .OSType "centos"}}
 menuentry "Install {{.OSName}} for {{.ID}}" {
-    linux {{.Kernel}} inst.ks={{.OSData.InstallKickStartURL}} ip={{.OSData.IP}} inst.repo={{.OSData.InstallRepoURL}}
+    linux {{.Kernel}} inst.ks={{.OSData.InstallKickStartURL}} ip={{.OSData.IP}} inst.repo={{.OSData.InstallRepoURL}} inst.stage2={{.OSData.Stage2}}
     initrd {{.OSData.Initrd}}
 }
 {{- else if eq .OSType "debian"}}

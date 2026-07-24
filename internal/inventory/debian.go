@@ -145,12 +145,13 @@ func genCentOSSeed(id string, mac string) {
 			SSHPubKey: sshKey[mac],
 		},
 		Interface:     "eth0",
-		DiskDevice:    "/dev/sda",
+		DiskDevice:    "/dev/vda",
 		ExtraPackages: "wget openssh-server efibootmgr",
 	}
 
+	os.MkdirAll("assets/http/centos/"+id, 0755)
 	templateFile := "templates/centos.tmpl"
-	dumpFile := "assets/http/centos/kickstart-" + id + ".cfg"
+	dumpFile := "assets/http/centos/"+id+"/install.ks"
 
 	tmpl, err := template.ParseFiles(templateFile)
 	if err != nil {

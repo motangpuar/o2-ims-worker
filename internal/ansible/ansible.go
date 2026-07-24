@@ -107,7 +107,14 @@ func Populate(targetIP, macAddress, userName string) {
 	opts.AddExtraVar("ansible_host", targetIP)
 	opts.AddExtraVar("kubeconfig_dest", kubeconfigDest)
 	opts.AddExtraVar("ansible_become_pass", "password")
-	opts.AddExtraVar("ansible_become_exe", "sudo.ws")
+	if userName == "ubuntu" {
+		opts.AddExtraVar("ansible_become_exe", "sudo.ws")
+	}
+	if userName == "centos" {
+    opts.AddExtraVar("k3s_extra_flags", "--write-kubeconfig-mode 644 --prefer-bundled-bin")
+	} else {
+	    opts.AddExtraVar("k3s_extra_flags", "--write-kubeconfig-mode 644")
+	}
 
 	cmd := playbook.NewAnsiblePlaybookCmd(
 		playbook.WithPlaybooks(playbookFile),
