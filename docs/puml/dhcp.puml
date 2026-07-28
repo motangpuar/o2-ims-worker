@@ -1,0 +1,29 @@
+@startuml
+top to bottom direction
+namespace dhcp {
+    class "Engine" << (S,Aquamarine) >> {
+        - cfg Reader
+
+        - handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) 
+
+        + Start() 
+
+    }
+    interface "Reader"  {
+        + BindAddr() string
+        + BindPort() int
+        + Enabled() bool
+        + Mode() string
+        + BindInterface() string
+        + TFTPIP() string
+        + TFTPPort() int
+        + NextServe() string
+        + BootFilePath() string
+
+    }
+}
+
+
+
+
+@enduml

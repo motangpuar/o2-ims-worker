@@ -1,0 +1,38 @@
+@startuml
+top to bottom direction
+namespace db {
+    interface "Client"  {
+        + OfferIP() string
+        + MACAddress() string
+        + BootFileUrl() string
+        + OSType() string
+        + ToMap() <font color=blue>map</font>[string]any
+
+    }
+    class "dhcpClients" << (S,Aquamarine) >> {
+        - userID string
+        - offerIP string
+        - macAddress string
+        - bootFileUrl string
+        - osType string
+
+        + OfferIP() string
+        + MACAddress() string
+        + BootFileUrl() string
+        + OSType() string
+        + DHCPClient() *dhcpClients
+        + ToMap() <font color=blue>map</font>[string]any
+
+    }
+    class "ptrClients" << (S,Aquamarine) >> {
+        + Clients <font color=blue>map</font>[string]Client
+
+    }
+}
+
+"db.Client" <|-- "implements""db.dhcpClients"
+
+"db.ptrClients""uses" o-- "db.Client"
+
+
+@enduml

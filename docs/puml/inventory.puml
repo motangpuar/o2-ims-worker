@@ -1,0 +1,100 @@
+@startuml
+top to bottom direction
+namespace inventory {
+    class "BaseConfig" << (S,Aquamarine) >> {
+        + Locale string
+        + Keymap string
+        + Timezone string
+        + Hostname string
+        + Domain string
+        + Username string
+        + UserFullname string
+        + PasswordHash string
+        + MirrorHost string
+        + MirrorDir string
+        + CallbackHost string
+        + MACAddress string
+        + SSHPubKey string
+
+    }
+    class "CentOSConfig" << (S,Aquamarine) >> {
+        + Interface string
+        + DiskDevice string
+        + ExtraPackages string
+
+    }
+    class "CentOSSpecific" << (S,Aquamarine) >> {
+        + Initrd string
+        + IP string
+        + InstallKickStartURL string
+        + InstallRepoURL string
+        + Stage2 string
+
+    }
+    class "CoreOSSpecifc" << (S,Aquamarine) >> {
+        + Initrd string
+        + RootFSURL string
+        + InstallDev string
+        + IgnitionURL string
+
+    }
+    class "DebianConfig" << (S,Aquamarine) >> {
+        + Interface string
+        + DiskDevice string
+        + Tasksel string
+        + ExtraPackages string
+        + Suite string
+
+    }
+    class "DebianSpecific" << (S,Aquamarine) >> {
+        + Initrd string
+        + PreeSeedURL string
+
+    }
+    class "MachineConfig" << (S,Aquamarine) >> {
+        + ID string
+        + OSName string
+        + OSType string
+        + Kernel string
+        + OSData any
+        + Installed bool
+
+    }
+    class "RHELSpecific" << (S,Aquamarine) >> {
+    }
+    class "UbuntuConfig" << (S,Aquamarine) >> {
+        + Interface string
+        + ExtraPackages []string
+
+    }
+    class "UbuntuSpecific" << (S,Aquamarine) >> {
+        + Initrd string
+        + IP string
+        + ISOUrl string
+        + CloudConfigURL string
+        + DS string
+        + RootPath string
+
+    }
+    class "installedMachines" << (S,Aquamarine) >> {
+        + Machines <font color=blue>map</font>[string]*MachineConfig
+        + InstallTime time.Time
+
+    }
+    class "ptrMachines" << (S,Aquamarine) >> {
+        + Machines <font color=blue>map</font>[string]*MachineConfig
+
+    }
+}
+"inventory.BaseConfig" *-- "extends""inventory.CentOSConfig"
+"inventory.BaseConfig" *-- "extends""inventory.DebianConfig"
+"inventory.BaseConfig" *-- "extends""inventory.UbuntuConfig"
+
+
+"inventory.MachineConfig""uses" o-- "inventory.any"
+"inventory.installedMachines""uses" o-- "inventory.MachineConfig"
+"inventory.installedMachines""uses" o-- "time.Time"
+"inventory.ptrMachines""uses" o-- "inventory.MachineConfig"
+
+
+@enduml

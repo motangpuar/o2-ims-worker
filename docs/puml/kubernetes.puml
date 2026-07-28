@@ -1,0 +1,73 @@
+@startuml
+top to bottom direction
+namespace kubernetes {
+    class "Client" << (S,Aquamarine) >> {
+        - cs kubernetes.Interface
+
+        + ClusterInfo(ctx context.Context) (*ClusterInfo, error)
+        + Nodes(ctx context.Context) ([]NodeInfo, error)
+        + Node(ctx context.Context, name string) (*NodeInfo, error)
+        + Pods(ctx context.Context, namespace string) ([]PodInfo, error)
+        + Services(ctx context.Context, namespace string) ([]ServiceInfo, error)
+        + Events(ctx context.Context, namespace string) ([]EventInfo, error)
+
+    }
+    class "ClusterInfo" << (S,Aquamarine) >> {
+        + NodeCount int
+        + Namespaces []string
+        + ServerVersion string
+
+    }
+    class "Clusters" << (S,Aquamarine) >> {
+        + Cluster []*ClusterInfo
+
+    }
+    class "EventInfo" << (S,Aquamarine) >> {
+        + Namespace string
+        + Name string
+        + Reason string
+        + Message string
+        + Count int32
+        + Type string
+
+    }
+    class "NodeInfo" << (S,Aquamarine) >> {
+        + Name string
+        + Status string
+        + Roles []string
+        + OS string
+        + KernelVersion string
+        + ContainerRuntime string
+        + Architecture string
+        + CPUCapacity string
+        + MemoryCapacity string
+        + CPUAllocatable string
+        + MemoryAllocatable string
+        + InternalIP string
+        + Labels <font color=blue>map</font>[string]string
+
+    }
+    class "PodInfo" << (S,Aquamarine) >> {
+        + Name string
+        + Namespace string
+        + Status string
+        + Node string
+        + IP string
+        + Images []string
+
+    }
+    class "ServiceInfo" << (S,Aquamarine) >> {
+        + Name string
+        + Namespace string
+        + Type string
+        + ClusterIP string
+        + Ports []string
+
+    }
+}
+
+
+"kubernetes.Clusters""uses" o-- "kubernetes.ClusterInfo"
+
+
+@enduml

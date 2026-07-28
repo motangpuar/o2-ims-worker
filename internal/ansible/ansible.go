@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"log"
 	"os"
+    "strings"
 	"path/filepath"
 
 	"github.com/apenella/go-ansible/v2/pkg/execute"
@@ -96,7 +97,10 @@ func Populate(targetIP, macAddress, userName string) {
 		return
 	}
 
-	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", "kubeconfig-target.yaml")
+	macAsID := strings.ReplaceAll(macAddress, ":", "-")
+    filePattern := "kubeconfig-"+macAsID+".yaml"
+
+	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", filePattern)
 
 	PtrAnsibleInfi = &AnsibleInfo{
 		KubeconfigPath: kubeconfigDest,

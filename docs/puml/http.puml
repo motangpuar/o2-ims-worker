@@ -1,0 +1,22 @@
+@startuml
+top to bottom direction
+namespace http {
+    class "clusterJson" << (S,Aquamarine) >> {
+        + Info any
+        + Nodes any
+
+    }
+    class "pipeLine" << (S,Aquamarine) >> {
+        + Name string
+        + Mac string
+        + IP string
+        + OS string
+
+    }
+}
+
+
+"http.clusterJson""uses" o-- "http.any"
+
+
+@enduml

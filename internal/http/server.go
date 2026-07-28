@@ -141,6 +141,11 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 	}
 }
 
+type clusterJson struct {
+	Info any
+	Nodes any
+}
+
 func handleKubernetes(w http.ResponseWriter, r *http.Request){
 	ansibleInfo := ansible_worker.GetInfo()
 	kc, err := kubeclient.New(ansibleInfo.KubeconfigPath)
@@ -167,9 +172,14 @@ func handleKubernetes(w http.ResponseWriter, r *http.Request){
 		log.Printf("[HTTP] node %s, status %s, cpu %s, mem %s, ip: %s",
 		n.Name, n.Status, n.CPUAllocatable, n.MemoryAllocatable, n.InternalIP)
 	}
+	
+	//var payload []any
+	//responseBody := append(payload, info, nodes)
 
-	var payload []any
-	responseBody := append(payload, nodes, info)
+	responseBody := clusterJson{
+		Info: info,
+		Nodes: nodes,
+	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(responseBody)

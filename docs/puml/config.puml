@@ -1,0 +1,50 @@
+@startuml
+top to bottom direction
+namespace config {
+    class "DHCPConfig" << (S,Aquamarine) >> {
+        - enabled bool
+        - mode string
+        - bindAddr string
+        - bindInterface string
+        - bindPort int
+        - tftpIP string
+        - tftpPort int
+        - nextServerIP string
+        - bootFilePath string
+
+        + BindAddr() string
+        + Enabled() bool
+        + Mode() string
+        + BindInterface() string
+        + BindPort() int
+        + TFTPIP() string
+        + TFTPPort() int
+        + NextServe() string
+        + BootFilePath() string
+
+    }
+    class "Master" << (S,Aquamarine) >> {
+        + TFTP *TFTPConfig
+        + DHCP *DHCPConfig
+
+    }
+    class "TFTPConfig" << (S,Aquamarine) >> {
+        - enabled bool
+        - bindAddr string
+        - bindPort int
+        - blockSize int
+
+        + BindAddr() string
+        + Enabled() bool
+        + BindPort() int
+        + BlockSize() int
+
+    }
+}
+
+
+"config.Master""uses" o-- "config.DHCPConfig"
+"config.Master""uses" o-- "config.TFTPConfig"
+
+
+@enduml

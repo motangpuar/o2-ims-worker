@@ -1,0 +1,27 @@
+@startuml
+top to bottom direction
+namespace ansible {
+    class "AnsibleInfo" << (S,Aquamarine) >> {
+        + KubeconfigPath string
+
+    }
+    class "K3sConfig" << (S,Aquamarine) >> {
+        + ServerIP string
+        + DisableComponents string
+        + CPUManagerPolicy string
+        + SystemReservedCPU string
+        + KubeReservedCPU string
+        + SystemReservedMem string
+        + KubeReservedMem string
+
+    }
+    class "template" << (S,Aquamarine) >> {
+        - machineType string
+
+    }
+}
+
+
+
+
+@enduml

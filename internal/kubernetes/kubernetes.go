@@ -34,6 +34,27 @@ type ClusterInfo struct {
 	ServerVersion string
 }
 
+type Clusters struct {
+	Cluster []*ClusterInfo
+}
+
+// Nodes
+type NodeInfo struct {
+	Name             string
+	Status           string
+	Roles            []string
+	OS               string
+	KernelVersion    string
+	ContainerRuntime string
+	Architecture     string
+	CPUCapacity      string
+	MemoryCapacity   string
+	CPUAllocatable   string
+	MemoryAllocatable string
+	InternalIP       string
+	Labels           map[string]string
+}
+
 func (c *Client) ClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 	nodes, err := c.cs.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -60,24 +81,6 @@ func (c *Client) ClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 		Namespaces:    namespaces,
 		ServerVersion: version.GitVersion,
 	}, nil
-}
-
-// Nodes
-
-type NodeInfo struct {
-	Name             string
-	Status           string
-	Roles            []string
-	OS               string
-	KernelVersion    string
-	ContainerRuntime string
-	Architecture     string
-	CPUCapacity      string
-	MemoryCapacity   string
-	CPUAllocatable   string
-	MemoryAllocatable string
-	InternalIP       string
-	Labels           map[string]string
 }
 
 func (c *Client) Nodes(ctx context.Context) ([]NodeInfo, error) {
