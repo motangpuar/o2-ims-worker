@@ -8,6 +8,7 @@ SVG_DIR="docs/svg"
 STRUCT_MD="docs/structure.md"
 PLANTUML_URL="http://localhost:8080"
 CONTAINER_NAME="plantuml-local"
+STARTED_CONTAINER=0
 
 mkdir -p "$PUML_DIR" "$SVG_DIR"
 
@@ -35,6 +36,8 @@ if ! curl -s -o /dev/null "$PLANTUML_URL"; then
     else
         $RUNTIME run -d --name "$CONTAINER_NAME" -p 8080:8080 plantuml/plantuml-server:jetty
     fi
+
+    STARTED_CONTAINER=1
 
     echo "[INFO] waiting for plantuml server to become ready"
     for i in $(seq 1 15); do

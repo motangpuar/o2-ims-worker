@@ -39,7 +39,9 @@ type UbuntuSpecific struct {
 }
 
 // Main Struc
-type MachineConfig struct {
+type MachineObject struct {
+	Cluster string
+	Template string
 	ID string
 	OSName string
 	OSType string
@@ -51,12 +53,12 @@ type MachineConfig struct {
 type installedMachines struct {
 	//mac string
 	//osType string
-	Machines map[string]*MachineConfig
+	Machines map[string]*MachineObject
 	InstallTime time.Time
 }
 
 type ptrMachines struct {
-	Machines map[string]*MachineConfig
+	Machines map[string]*MachineObject
 }
 
 var activeMachines *ptrMachines
@@ -89,15 +91,18 @@ func LogInstalledMachine(m, ot string, installedAt time.Time) error {
 	}
 }
 
-func Generate(m string, t string) {
+//func Generate(m, t, c,  ansibleTemplate string) {
+func (mobj *MachineObject) Generate(m, t, c,  ansibleTemplate string) *MachineObject {
 	log.Printf("[Inventory Realm]--------------------")
 	log.Printf("[Inventory] Procsesing for %s", m)
 
 	var osDetails any
-	var targetMachine MachineConfig
+	var targetMachine MachineObject
 	macAsID := strings.ReplaceAll(m, ":", "-")
 
-	targetMachine = MachineConfig{
+	targetMachine = MachineObject{
+			Cluster: c,
+			Template: ansibleTemplate,
 			ID: macAsID,
 			Installed: false,
 	}
@@ -153,9 +158,11 @@ func Generate(m string, t string) {
 	// Append current client as template struct
 	machines := activeMachines.Machines
 	machines[m] = &targetMachine
+
+	return &targetMachine
 }
 
-func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
+func genPXEEntry(mode string, m string, targetMachine *MachineObject){
 
 	var dumpFile string
 	var templateFile string
@@ -190,14 +197,21 @@ func genPXEEntry(mode string, m string, targetMachine *MachineConfig){
 }
 
 func Init() {
-	machines := make(map[string]*MachineConfig)
-
+	machines := make(map[string]*MachineObject)
 	activeMachines = &ptrMachines{
 		Machines: machines,
 	}
-
 	activeInstalledMachines = &installedMachines{
-		Machines: make(map[string]*MachineConfig),
+		Machines: make(map[string]*MachineObject),
 	}
-
 }
+
+func GetTemplate(m string) string {
+	target := activeMachines.Machines[m]
+	return target.Template
+}
+
+func (m *MachineObject) GetTemplate() string {
+	return "Hello"
+}
+

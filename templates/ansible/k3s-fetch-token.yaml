@@ -1,0 +1,50 @@
+---
+# - name: Fetch k3s master token and address
+#   hosts: master
+#   become: true
+# 
+#   tasks:
+#     - name: Read k3s node token
+#       slurp:
+#         src: /var/lib/rancher/k3s/server/node-token
+#       register: k3s_token_raw
+# 
+#     - name: Set master address fact
+#       set_fact:
+#         k3s_master_address: "{{ ansible_default_ipv4.address }}"
+# 
+#     - name: Output cluster info as JSON
+#       debug:
+# j       msg: "{{ {'master_address': k3s_master_address, 'token': (k3s_token_raw.content | b64decode | trim)} | to_json }}"
+# 
+- hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Read kubeconfig
+      ansible.builtin.slurp:
+        src: "{{ kubeconfig_path }}"
+      register: kc_b64
+      no_log: true
+
+    - name: Read k3s node token
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_raw
+    - name: Parse and structure output
+      ansible.builtin.set_fact:
+        k3s_creds: "{{
+          {
+            'server': (kc_yaml.clusters | first).cluster.server | default(''),
+            'token': (k3s_token_raw.content | b64decode | trim)
+          }
+        }}"
+      vars:
+        kc_yaml: "{{ kc_b64.content | b64decode | from_yaml }}"
+      no_log: true
+
+    - name: Emit JSON for Go consumption
+      ansible.builtin.debug:
+        msg: "{{ k3s_creds | to_json }}"

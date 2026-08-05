@@ -1,11 +1,12 @@
 package filedata
 
-import "github.com/motangpuar/o2-ims-worker/internal/inventory"
 import "log"
 import "os"
 import "bufio"
 import "strings"
 import "fmt"
+import "github.com/motangpuar/o2-ims-worker/internal/inventory"
+import "github.com/motangpuar/o2-ims-worker/internal/kubernetes"
 
 //
 // This package will manage staticlly defined users and introduce them to dhcp
@@ -17,19 +18,24 @@ import "fmt"
 // 4. Pool based broadcast, different subnets for different clusters
 //
 
-type dhcpClients struct {
-	userID string
-	offerIP string
-	macAddress string
-	bootFileUrl string
-	osType string
-}
+// Main Interface
+// This interface extend beyond this package
 type Client interface { 
 	OfferIP() string
 	MACAddress() string
 	BootFileUrl() string
 	OSType() string
 	ToMap() map[string]any
+	GetTemplate() string
+}
+
+type dhcpClients struct {
+	userID string
+	offerIP string
+	macAddress string
+	bootFileUrl string
+	osType string
+	machineObject inventory.MachineObject
 }
 
 // Make it into map so it will always be O(1) upon reading from DHCP
@@ -93,8 +99,6 @@ func AddItemToFile(ip, mac, osType string) {
 
 	err = writer.Flush()
 
-	
-
 	if err != nil {
 		log.Printf("[FILE] Error flush: %v", err)
 	}
@@ -143,34 +147,43 @@ func Populate() {
 	// Skip first line by start an empty Scan() function from scanner
 	if scanner.Scan() {}
 
-	for scanner.Scan() {
-		cLine := scanner.Text()
-		//log.Printf("[BUFIO] %s", cLine)
-		read_lines := strings.Split(cLine, ",")
-		clients = append(clients,
-			&dhcpClients{
-				offerIP: read_lines[0],
-				macAddress: read_lines[1],
-				bootFileUrl: read_lines[2],
-				osType: read_lines[3],
-			},
-		)
-	}
-
 	// Populate Template struct with empty
 	inventory.Init()
-
 	m := make(map[string]Client, len(clients))
-	for _,c := range clients {
-		log.Printf("[Struct] %s", c)
-		m[c.macAddress] = c
+	for scanner.Scan() {
+		cLine := scanner.Text()
 
-		// Generate Template of given Client
-		inventory.Generate(c.macAddress, c.osType)
+		//log.Printf("[BUFIO] %s", cLine)
+		read_lines := strings.Split(cLine, ",")
+		currIP := read_lines[0]
+		currMAC := read_lines[1]
+		currFileUrl := read_lines[2]
+		currOS := read_lines[3]
+		currCluster := read_lines[4]
+		currTemplate := read_lines[5]
+		if currCluster == "" {
+			currCluster = "unclaimed"
+		}
+
+		// Inventory Object
+		invObj := inventory.MachineObject{}
+		machineObj := invObj.Generate(currMAC, currOS, currCluster, currTemplate)
+
+		currClient := &dhcpClients{
+				offerIP: currIP,
+				macAddress: currMAC,
+				bootFileUrl: currFileUrl,
+				osType: currOS,
+				machineObject: *machineObj,
+			}
+		clients = append(clients, currClient)
+		m[currMAC] = currClient
+
+		// Populate Cluster Object
+		kubeclient.InitCluster(currCluster)
 	}
 
 	log.Printf("[Struct] Total Section %d", len(clients))
-
 	// Intialize pointer of Clients
 	activePtr = &ptrClients{
 		Clients: m,
@@ -189,8 +202,12 @@ func (d *dhcpClients) OfferIP() string { return d.offerIP }
 func (d *dhcpClients) MACAddress() string { return d.macAddress }
 func (d *dhcpClients) BootFileUrl() string { return d.bootFileUrl }
 func (d *dhcpClients) OSType() string { return d.osType }
-func (d *dhcpClients) DHCPClient() *dhcpClients { return d }
 
+// Extend to other package
+func (d *dhcpClients) GetTemplate() string { return d.machineObject.Template }
+
+// Bulk Interface
+func (d *dhcpClients) DHCPClient() *dhcpClients { return d }
 func (d *dhcpClients) ToMap() map[string]any {
 	return map[string]any{
 		"ip": d.offerIP,

@@ -106,12 +106,12 @@ func handlePipeline(w http.ResponseWriter, r *http.Request) {
 
 func handleCallback(w http.ResponseWriter, r *http.Request){
 	log.Printf("[HTTP] Request arrive for Callback...")
-	queryParams := r.URL.Query()
 
+	queryParams := r.URL.Query()
 	macQuery := queryParams.Get("mac")
 
 	if macQuery == "" {
-		log.Printf("[HTTP] Machines %v", inventory.FetchInstalledMachines())
+		log.Printf("[HTTP] Machines %v", inventory.FetchMachines())
 	} else {
 		err := inventory.LogInstalledMachine(macQuery, "", time.Now())
 		if err != nil {
@@ -121,6 +121,49 @@ func handleCallback(w http.ResponseWriter, r *http.Request){
 		}
 	}
 
+}
+
+func handleAnsibleFetchToken(w http.ResponseWriter, r *http.Request){
+	log.Printf("[HTTP] Request arrive for Ansible")
+
+	queryParams := r.URL.Query()
+	macQuery := queryParams.Get("mac")
+
+	if macQuery == "" {
+		log.Printf("[HTTP] Ansible Options")
+	} else {
+		value, exist := filedata.Gather().Clients[macQuery]
+
+		if value == nil {
+			log.Printf("Failed to send Response")
+			http.Error(w, "Object not exist ", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("[HTTP] %v is %v", value, exist)
+
+		username := value.OSType()
+		template := value.GetTemplate()
+
+		log.Printf("[HTTP] Template is %s",template)
+		if exist != true {
+			return
+		}
+
+		token,err := ansible_worker.FetchToken(value.OfferIP(), username, macQuery)
+		if err != nil {
+			http.Error(w, "Error during ansible execution: "+err.Error(), http.StatusInternalServerError)
+			return
+
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(token)
+		if err != nil {
+			log.Printf("Failed to send Response")
+			http.Error(w, "Token Error"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 }
 
 func handleAnsible(w http.ResponseWriter, r *http.Request){
@@ -133,21 +176,65 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 		log.Printf("[HTTP] Ansible Options")
 	} else {
 		value, exist := filedata.Gather().Clients[macQuery]
+
+		if value == nil {
+			log.Printf("Failed to send Response")
+			http.Error(w, "Object not exist ", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("[HTTP] %v is %v", value, exist)
+
 		username := value.OSType()
+		template := value.GetTemplate()
+
+		log.Printf("[HTTP] Template is %s",template)
 		if exist != true {
 			return
 		}
-		ansible_worker.Populate(value.OfferIP(), macQuery, username)
+
+		exec,err := ansible_worker.Populate(value.OfferIP(), macQuery, username, template)
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(exec)
+		if err != nil {
+			http.Error(w, "Exec Error"+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
-type clusterJson struct {
-	Info any
-	Nodes any
-}
-
 func handleKubernetes(w http.ResponseWriter, r *http.Request){
+
 	ansibleInfo := ansible_worker.GetInfo()
+
+	// Should iterate over multiple kubeconfigs
+	// for different clusters. Fetch clusters here.
+	// Clusters states modified only based on 
+	// ansible's actions.
+
+	//for _,n in range clients {
+	//}
+
+	queryParams := r.URL.Query()
+	macQuery := queryParams.Get("item")
+
+	if macQuery == "clusters" {
+		responseBody,err := kubeclient.GetClusters(ansibleInfo.KubeconfigPath, *httpContext)
+		if err != nil {
+			log.Printf("Failed to send Response")
+			http.Error(w, "Error Detected"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(responseBody)
+		if err != nil {
+			log.Printf("Failed to send Response")
+			http.Error(w, "Error Detected", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
 	kc, err := kubeclient.New(ansibleInfo.KubeconfigPath)
 	if err != nil {
 		log.Printf("[HTTP] Failed to established kubernetes connection")
@@ -173,13 +260,8 @@ func handleKubernetes(w http.ResponseWriter, r *http.Request){
 		n.Name, n.Status, n.CPUAllocatable, n.MemoryAllocatable, n.InternalIP)
 	}
 	
-	//var payload []any
-	//responseBody := append(payload, info, nodes)
-
-	responseBody := clusterJson{
-		Info: info,
-		Nodes: nodes,
-	}
+	var payload []any
+	responseBody := append(payload, info)
 	
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(responseBody)
@@ -203,6 +285,7 @@ func Serve(ctx context.Context) {
 	mux.HandleFunc("/inventories", handleInventory)
 	mux.HandleFunc("/callback", handleCallback)
 	mux.HandleFunc("/ansible", handleAnsible)
+	mux.HandleFunc("/ansible-token", handleAnsibleFetchToken)
 	mux.HandleFunc("/kubernetes", handleKubernetes)
 	log.Fatal(http.ListenAndServe(":8033", mux))
 }

@@ -2,6 +2,7 @@
 top to bottom direction
 namespace ansible {
     class "AnsibleInfo" << (S,Aquamarine) >> {
+        + Cluster kubeclient.ClusterInfo
         + KubeconfigPath string
 
     }
@@ -22,6 +23,7 @@ namespace ansible {
 }
 
 
+"ansible.AnsibleInfo""uses" o-- "kubeclient.ClusterInfo"
 
 
 @enduml

@@ -3,7 +3,7 @@ package kubeclient
 import (
 	"context"
 	"fmt"
-
+	"log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -29,13 +29,58 @@ func New(kubeconfigPath string) (*Client, error) {
 // Cluster
 
 type ClusterInfo struct {
+	ClusterID     string
 	NodeCount     int
 	Namespaces    []string
 	ServerVersion string
+	Events        []EventInfo
+	Pods          []PodInfo
+	Nodes         []NodeInfo
 }
 
 type Clusters struct {
-	Cluster []*ClusterInfo
+	Cluster map[string]*Cluster
+}
+
+type Cluster struct{
+	ID string
+	KubeConfig string
+	Token string
+	APIEndpoint string
+	Info *ClusterInfo
+}
+
+var PtrClusterMap *Clusters
+
+func InitCluster(id string) {
+	if PtrClusterMap == nil {
+		PtrClusterMap = &Clusters{
+			Cluster: make(map[string]*Cluster),
+		}
+	}
+	PtrClusterMap.Cluster[id] = &Cluster{ID: id}
+	log.Printf("[KUBERNETES] Created cluster %v", PtrClusterMap)
+}
+
+func GetClusters(path string, ctx context.Context) (*Clusters,error) {
+	for key,_ := range PtrClusterMap.Cluster {
+		kc, err := New(path)
+		if err != nil {
+			log.Printf("[KUBERNETES] Error using kubeconfig")
+			return nil,err
+		}
+		info,err := kc.ClusterInfo(ctx)
+		if err != nil {
+			log.Printf("[KUBERNETS] Failed to fetch clusterinfo")
+			return nil,err
+		}
+		log.Printf("[KUBERNETES] Current ID %v", key)
+		PtrClusterMap.Cluster[key] = &Cluster{
+			Info: info,
+		}
+	}
+
+	return PtrClusterMap, nil
 }
 
 // Nodes
@@ -76,12 +121,43 @@ func (c *Client) ClusterInfo(ctx context.Context) (*ClusterInfo, error) {
 		namespaces = append(namespaces, ns.Name)
 	}
 
+	nodeObjects := make([]NodeInfo, 0, len(nodes.Items))
+	for _, node := range nodes.Items {
+		nodeObjects = append(nodeObjects, parseNode(node))
+	}
+
+	// Populate Pods
+	var podObjects []PodInfo
+	for _, ns := range namespaces {
+		podItems, err := c.Pods(ctx, ns)
+		if err != nil {
+			log.Printf("[KUBERNETES] Faile to get pod data")
+			return nil, err
+		}
+		podObjects = append(podObjects, podItems...)
+	}
+
+	// Populate Events
+	var eventObjects []EventInfo
+	for _, ns := range namespaces {
+		eventItems, err := c.Events(ctx, ns)
+		if err != nil {
+			log.Printf("[KUBERNETES] Faile to get event data")
+			return nil, err
+		}
+		eventObjects = append(eventObjects, eventItems...)
+	}
+
 	return &ClusterInfo{
 		NodeCount:     len(nodes.Items),
 		Namespaces:    namespaces,
 		ServerVersion: version.GitVersion,
+		Events:        eventObjects,
+		Pods:          podObjects,
+		Nodes:         nodeObjects,
 	}, nil
 }
+
 
 func (c *Client) Nodes(ctx context.Context) ([]NodeInfo, error) {
 	nodes, err := c.cs.CoreV1().Nodes().List(ctx, metav1.ListOptions{})

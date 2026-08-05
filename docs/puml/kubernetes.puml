@@ -16,10 +16,15 @@ namespace kubernetes {
         + NodeCount int
         + Namespaces []string
         + ServerVersion string
+        + Events []EventInfo
+        + Pods []PodInfo
+        + Nodes []NodeInfo
 
     }
     class "Clusters" << (S,Aquamarine) >> {
         + Cluster []*ClusterInfo
+
+        + GetClusters() ([]ClusterInfo, error)
 
     }
     class "EventInfo" << (S,Aquamarine) >> {
@@ -67,6 +72,9 @@ namespace kubernetes {
 }
 
 
+"kubernetes.ClusterInfo""uses" o-- "kubernetes.EventInfo"
+"kubernetes.ClusterInfo""uses" o-- "kubernetes.NodeInfo"
+"kubernetes.ClusterInfo""uses" o-- "kubernetes.PodInfo"
 "kubernetes.Clusters""uses" o-- "kubernetes.ClusterInfo"
 
 
