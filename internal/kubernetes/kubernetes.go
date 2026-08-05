@@ -67,7 +67,7 @@ func GetClusters(path string, ctx context.Context) (*Clusters,error) {
 		kc, err := New(path)
 		if err != nil {
 			log.Printf("[KUBERNETES] Error using kubeconfig")
-			return nil,err
+			return PtrClusterMap, err
 		}
 		info,err := kc.ClusterInfo(ctx)
 		if err != nil {

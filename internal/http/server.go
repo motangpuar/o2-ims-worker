@@ -168,14 +168,17 @@ func handleAnsibleFetchToken(w http.ResponseWriter, r *http.Request){
 
 func handleAnsible(w http.ResponseWriter, r *http.Request){
 	log.Printf("[HTTP] Request arrive for Ansible")
-
 	queryParams := r.URL.Query()
 	macQuery := queryParams.Get("mac")
 
 	if macQuery == "" {
 		log.Printf("[HTTP] Ansible Options")
 	} else {
-		value, exist := filedata.Gather().Clients[macQuery]
+		clients := filedata.Gather().Clients
+		value,exist := clients[macQuery]
+		machines := value.GetMachines()
+
+		log.Printf("-> %v", machines) 
 
 		if value == nil {
 			log.Printf("Failed to send Response")
@@ -185,15 +188,53 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 
 		log.Printf("[HTTP] %v is %v", value, exist)
 
+		ansibleInfo := ansible_worker.GetInfo()
 		username := value.OSType()
 		template := value.GetTemplate()
+		cluster := value.GetCluster()
+		clusterDump,err := kubeclient.GetClusters(ansibleInfo.KubeconfigPath, *httpContext)
 
-		log.Printf("[HTTP] Template is %s",template)
+		nodes := clusterDump.Cluster[cluster].Info.Nodes
+		var nodeObj struct {
+		    Name string
+		    IP   string
+		    Mac  string
+		    Role string
+		}
+		for _,n := range(nodes) {
+			log.Printf("Process Node %s", n.Name)
+			for _, r := range(n.Roles) {
+				if r == "control-plane" {
+					var dumpMac string
+					var dumpName string
+					for _, m := range(clients){
+						// Find Mac and IP of this shit
+						if m.GetMachines().IP == n.InternalIP {
+							dumpName = m.GetMachines().OSType
+							dumpMac = m.MACAddress()
+						}
+					}
+					nodeObj = struct {
+						Name string
+						IP string
+						Mac string
+						Role string
+					}{
+						Name: dumpName,
+						IP: n.InternalIP,
+						Mac: dumpMac,
+						Role: r,
+					}
+				}
+			}
+		}
+
+		log.Printf("[HTTP] Template is %s ",template)
 		if exist != true {
 			return
 		}
 
-		exec,err := ansible_worker.Populate(value.OfferIP(), macQuery, username, template)
+		exec,err := ansible_worker.Populate(value.OfferIP(), macQuery, username, template, nodeObj)
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(exec)
 		if err != nil {

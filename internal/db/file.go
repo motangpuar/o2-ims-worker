@@ -18,8 +18,10 @@ import "github.com/motangpuar/o2-ims-worker/internal/kubernetes"
 // 4. Pool based broadcast, different subnets for different clusters
 //
 
+//
 // Main Interface
 // This interface extend beyond this package
+//
 type Client interface { 
 	OfferIP() string
 	MACAddress() string
@@ -27,6 +29,8 @@ type Client interface {
 	OSType() string
 	ToMap() map[string]any
 	GetTemplate() string
+	GetCluster() string
+	GetMachines() inventory.MachineObject
 }
 
 type dhcpClients struct {
@@ -167,7 +171,7 @@ func Populate() {
 
 		// Inventory Object
 		invObj := inventory.MachineObject{}
-		machineObj := invObj.Generate(currMAC, currOS, currCluster, currTemplate)
+		machineObj := invObj.Generate(currIP, currMAC, currOS, currCluster, currTemplate)
 
 		currClient := &dhcpClients{
 				offerIP: currIP,
@@ -205,6 +209,8 @@ func (d *dhcpClients) OSType() string { return d.osType }
 
 // Extend to other package
 func (d *dhcpClients) GetTemplate() string { return d.machineObject.Template }
+func (d *dhcpClients) GetCluster() string { return d.machineObject.Cluster }
+func (d *dhcpClients) GetMachines() inventory.MachineObject { return d.machineObject }
 
 // Bulk Interface
 func (d *dhcpClients) DHCPClient() *dhcpClients { return d }

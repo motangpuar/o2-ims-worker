@@ -40,6 +40,7 @@ type UbuntuSpecific struct {
 
 // Main Struc
 type MachineObject struct {
+	IP string
 	Cluster string
 	Template string
 	ID string
@@ -92,7 +93,7 @@ func LogInstalledMachine(m, ot string, installedAt time.Time) error {
 }
 
 //func Generate(m, t, c,  ansibleTemplate string) {
-func (mobj *MachineObject) Generate(m, t, c,  ansibleTemplate string) *MachineObject {
+func (mobj *MachineObject) Generate(ip, m, t, c,  ansibleTemplate string) *MachineObject {
 	log.Printf("[Inventory Realm]--------------------")
 	log.Printf("[Inventory] Procsesing for %s", m)
 
@@ -105,13 +106,13 @@ func (mobj *MachineObject) Generate(m, t, c,  ansibleTemplate string) *MachineOb
 			Template: ansibleTemplate,
 			ID: macAsID,
 			Installed: false,
+			IP: ip,
 	}
 
 	switch t {
 	case "centos":
 		osDetails = CentOSSpecific{
 			Initrd: "/images/centos/initrd.img",
-			IP: "dhcp",
 			InstallKickStartURL: "http://192.168.99.1:8033/centos/"+macAsID+"/install.ks",
 			InstallRepoURL: "http://192.168.99.1:8033/centos/mirror/",
 			Stage2: "http://192.168.99.1:8033/centos/mirror",
@@ -123,7 +124,6 @@ func (mobj *MachineObject) Generate(m, t, c,  ansibleTemplate string) *MachineOb
 		genCentOSSeed(macAsID, m)
 	case "ubuntu":
 		osDetails = UbuntuSpecific{
-			IP: "dhcp",
 			Initrd: "/images/ubuntu/initrd",
 			//ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-desktop-amd64.iso",
 			ISOUrl: "http://192.168.99.1:8033/ubuntu/iso/ubuntu-26.04-live-server-amd64.iso",

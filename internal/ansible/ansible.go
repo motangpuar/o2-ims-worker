@@ -140,7 +140,6 @@ func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
 	PtrAnsibleInfi = &AnsibleInfo{
 		KubeconfigPath: kubeconfigDest,
 	}
-
 	opts.AddExtraVar("ansible_become_pass", "password")
 	opts.AddExtraVar("mac_address", macAddress)
 	if userName == "ubuntu" {
@@ -161,7 +160,7 @@ func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
 	)
 
 	if err := exec.Execute(context.Background()); err != nil {
-		log.Printf("[Ansible] Fail to execute ansible: %v", err)
+		log.Printf("[Ansible-Token] Fail to execute ansible: %v", err)
 		return nil,err
 	}
 
@@ -176,13 +175,33 @@ func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
 	return dump, nil
 }
 
-func Populate(targetIP, macAddress, userName, templateMode string) (*ansiblejson.AnsiblePlaybookJSONResults,error) {
+func Populate(targetIP, macAddress, userName, templateMode string, nodeObj struct {
+	Name string
+	IP string
+	Mac string
+	Role string
+}) (*ansiblejson.AnsiblePlaybookJSONResults,error) {
 
-	// Dummy SSH Key
 	sshKey, _ := os.ReadFile("assets/keys/test_provisioner")
 	log.Printf("[ANSIBLE] Populate ansible ...")
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Printf("[ANSIBLE] Failed to find path: %v", err)
+		return nil,err
+	}
+	macAsID := strings.ReplaceAll(macAddress, ":", "-")
+    filePattern := "kubeconfig-"+macAsID+".yaml"
+	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", filePattern)
+	
+	// add path to struct
+	PtrAnsibleInfi = &AnsibleInfo{
+		KubeconfigPath: kubeconfigDest,
+	}
+
 	var playbookYAML []byte
+	extraVar := make(map[string]interface{})
+	extraVar["ansible_become_pass"] = "password"
 	switch templateMode { 
 	case "k3s-master":
 		chunk, err := os.ReadFile("templates/ansible/k3s-master.yaml")
@@ -190,12 +209,24 @@ func Populate(targetIP, macAddress, userName, templateMode string) (*ansiblejson
 			return nil,err
 		}
 		playbookYAML = chunk
+		extraVar["ansible_host"] = targetIP
+		extraVar["kubeconfig_dest"] = kubeconfigDest
+		extraVar["mac_address"] = macAddress
 	case "k3s-worker":
 		chunk, err := os.ReadFile("templates/ansible/k3s-worker.yaml")
 		if err != nil {
 			return nil,err
 		}
+		k3sCred,err:= FetchToken(nodeObj.IP, nodeObj.Name, nodeObj.Mac)
+		if err != nil {
+			return nil, err
+		}
+
 		playbookYAML = chunk
+		extraVar["target_mac"] = macAddress
+		extraVar["server"] = k3sCred.Server
+		extraVar["token"] = k3sCred.Token
+
 	}
 
 	log.Printf("[ANSIBLE] template %s file size %d", templateMode, len(playbookYAML))
@@ -206,10 +237,8 @@ func Populate(targetIP, macAddress, userName, templateMode string) (*ansiblejson
 	log.Printf("[ANSIBLE] Ansible Template %s", machine.machineType)
 
 	playbookFile, cleanupPB := writeTemp("playbook-*.yaml", playbookYAML, 0644)
-	defer cleanupPB()
-
 	keyFile, cleanupKF := writeTemp("id_ed25519-*", sshKey, 0600)
-
+	defer cleanupPB()
 	defer cleanupKF()
 
 	os.Setenv("ANSIBLE_HOST_KEY_CHECKING", "False")
@@ -219,36 +248,17 @@ func Populate(targetIP, macAddress, userName, templateMode string) (*ansiblejson
 		PrivateKey: keyFile,
 		SSHExtraArgs:  "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -tt",
 		BecomeMethod: "sudo",
-	}
-
-	opts.AddExtraVar("mac_address", macAddress)
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Printf("[ANSIBLE] Failed to find path: %v", err)
-		return nil,err
-	}
-
-	macAsID := strings.ReplaceAll(macAddress, ":", "-")
-    filePattern := "kubeconfig-"+macAsID+".yaml"
-
-	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", filePattern)
-	
-	PtrAnsibleInfi = &AnsibleInfo{
-		KubeconfigPath: kubeconfigDest,
+		ExtraVars: extraVar,
 	}
 	
 	log.Printf("[ANSIBLE] Target path: %s", kubeconfigDest)
 
-	opts.AddExtraVar("ansible_host", targetIP)
-	opts.AddExtraVar("kubeconfig_dest", kubeconfigDest)
-	opts.AddExtraVar("ansible_become_pass", "password")
+	// Essential Args
 	if userName == "ubuntu" {
 		opts.AddExtraVar("ansible_become_exe", "sudo.ws")
 	}
-
 	if userName == "centos" {
-    opts.AddExtraVar("k3s_extra_flags", "--write-kubeconfig-mode 644 --prefer-bundled-bin")
+    	opts.AddExtraVar("k3s_extra_flags", "--write-kubeconfig-mode 644 --prefer-bundled-bin")
 	} else {
 	    opts.AddExtraVar("k3s_extra_flags", "--write-kubeconfig-mode 644")
 	}
@@ -267,12 +277,11 @@ func Populate(targetIP, macAddress, userName, templateMode string) (*ansiblejson
 		),
 	)
 
+	res, err := ansiblejson.ParseJSONResultsStream(&buf)
 	if err := exec.Execute(context.Background()); err != nil {
 		log.Printf("[Ansible] Fail to execute ansible: %v", err)
-		return nil,err
+		return res,err
 	}
-
-	res, err := ansiblejson.ParseJSONResultsStream(&buf)
 	return res,nil
 }
 
