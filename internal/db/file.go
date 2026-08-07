@@ -1,5 +1,6 @@
 package filedata
 
+import "sync"
 import "log"
 import "os"
 import "bufio"
@@ -7,6 +8,7 @@ import "strings"
 import "fmt"
 import "github.com/motangpuar/o2-ims-worker/internal/inventory"
 import "github.com/motangpuar/o2-ims-worker/internal/kubernetes"
+import "github.com/motangpuar/o2-ims-worker/internal/ansible"
 
 //
 // This package will manage staticlly defined users and introduce them to dhcp
@@ -17,7 +19,6 @@ import "github.com/motangpuar/o2-ims-worker/internal/kubernetes"
 // 3. DB based clients -> dbdata
 // 4. Pool based broadcast, different subnets for different clusters
 //
-
 //
 // Main Interface
 // This interface extend beyond this package
@@ -94,7 +95,6 @@ func AddItemToFile(ip, mac, osType string) {
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-
 	_, err = fmt.Fprintf(writer, "%s,%s,pxelinux.0,%s\n", ip, mac, osType )
 	if err != nil {
 		log.Printf("[FILE] Error: %v", err)
@@ -102,7 +102,6 @@ func AddItemToFile(ip, mac, osType string) {
 	}
 
 	err = writer.Flush()
-
 	if err != nil {
 		log.Printf("[FILE] Error flush: %v", err)
 	}
@@ -147,13 +146,20 @@ func Populate() {
 		log.Fatalf("Failed to scan CSV file: %s", err)
 	}
 
-
 	// Skip first line by start an empty Scan() function from scanner
 	if scanner.Scan() {}
 
 	// Populate Template struct with empty
 	inventory.Init()
 	m := make(map[string]Client, len(clients))
+
+	clustersMap := make(map[string][]struct{
+		Node string
+		Role string
+		OS string
+		IP string
+	})
+
 	for scanner.Scan() {
 		cLine := scanner.Text()
 
@@ -165,13 +171,21 @@ func Populate() {
 		currOS := read_lines[3]
 		currCluster := read_lines[4]
 		currTemplate := read_lines[5]
+		currRole := read_lines[6]
+
 		if currCluster == "" {
 			currCluster = "unclaimed"
 		}
 
 		// Inventory Object
 		invObj := inventory.MachineObject{}
-		machineObj := invObj.Generate(currIP, currMAC, currOS, currCluster, currTemplate)
+		machineObj := invObj.Generate(
+			currIP,
+			currMAC,
+			currOS,
+			currCluster,
+			currRole,
+			currTemplate)
 
 		currClient := &dhcpClients{
 				offerIP: currIP,
@@ -183,9 +197,53 @@ func Populate() {
 		clients = append(clients, currClient)
 		m[currMAC] = currClient
 
-		// Populate Cluster Object
-		kubeclient.InitCluster(currCluster)
+		clustersMap[currCluster] = append(clustersMap[currCluster],
+			struct {
+				Node string
+				Role string
+				OS string
+				IP string
+			}{
+				Node: currMAC,
+				Role: currRole,
+				OS: currOS,
+				IP: currIP,
+		})
+
 	}
+
+	//iterate over machine to find cluster based on master
+	// Populate Cluster Object
+	// Start this 
+	go func() {
+		var wg sync.WaitGroup
+		for k,n := range(clustersMap) {
+			log.Printf("[Struct] ClusterMAP %s", k)
+			log.Printf("[Struct] ClusterNode %s", n)
+			clusterNodes := n
+			kubeclient.InitCluster(k, &clusterNodes)
+			for _,d := range(n) {
+				wg.Add(1)
+
+				// Run the validate cluster on the fly concurrently
+				// freeze current value so other process not affecting 
+				// current values
+				go func(nodeData struct{
+					Node string
+					Role string
+					OS string
+					IP string
+				}){
+					defer wg.Done()
+					ansible_worker.FetchToken(nodeData.IP, nodeData.OS, nodeData.Node)
+				}(d)
+			}
+		}
+		wg.Wait()
+		// This is placeholder for event logs
+		log.Println("[Cycle Validation] SUCCESS: All background tasks finished properly!")
+	}()
+
 
 	log.Printf("[Struct] Total Section %d", len(clients))
 	// Intialize pointer of Clients

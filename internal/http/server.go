@@ -11,11 +11,16 @@ import "github.com/motangpuar/o2-ims-worker/internal/ansible"
 import "github.com/motangpuar/o2-ims-worker/internal/kubernetes"
 import "slices"
 
+type HTTPError struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+}
+
 type pipeLine struct {
 	Name string `json:"name"`
-	Mac string `json:"mac"`
-	IP string `json:"ip"`
-	OS string `json:"os"`
+	Mac  string `json:"mac"`
+	IP   string `json:"ip"`
+	OS   string `json:"os"`
 }
 
 var httpContext *context.Context
@@ -136,7 +141,12 @@ func handleAnsibleFetchToken(w http.ResponseWriter, r *http.Request){
 
 		if value == nil {
 			log.Printf("Failed to send Response")
-			http.Error(w, "Object not exist ", http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError) // 500 Status Code
+			json.NewEncoder(w).Encode(HTTPError{
+				Error:   "InternalServerError",
+				Message: "Object not exist",
+			})
 			return
 		}
 
@@ -152,7 +162,12 @@ func handleAnsibleFetchToken(w http.ResponseWriter, r *http.Request){
 
 		token,err := ansible_worker.FetchToken(value.OfferIP(), username, macQuery)
 		if err != nil {
-			http.Error(w, "Error during ansible execution: "+err.Error(), http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError) // 500 Status Code
+			json.NewEncoder(w).Encode(HTTPError{
+				Error:   "InternalServerError",
+				Message: err.Error(),
+			})
 			return
 
 		}
@@ -160,7 +175,12 @@ func handleAnsibleFetchToken(w http.ResponseWriter, r *http.Request){
 		err = json.NewEncoder(w).Encode(token)
 		if err != nil {
 			log.Printf("Failed to send Response")
-			http.Error(w, "Token Error"+err.Error(), http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError) // 500 Status Code
+			json.NewEncoder(w).Encode(HTTPError{
+				Error:   "InternalServerError",
+				Message: err.Error(),
+			})
 			return
 		}
 	}
@@ -188,11 +208,11 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 
 		log.Printf("[HTTP] %v is %v", value, exist)
 
-		ansibleInfo := ansible_worker.GetInfo()
+		//ansibleInfo := ansible_worker.GetInfo()
 		username := value.OSType()
 		template := value.GetTemplate()
 		cluster := value.GetCluster()
-		clusterDump,err := kubeclient.GetClusters(ansibleInfo.KubeconfigPath, *httpContext)
+		clusterDump,err := kubeclient.GetClusters(*httpContext)
 
 		nodes := clusterDump.Cluster[cluster].Info.Nodes
 		var nodeObj struct {
@@ -246,21 +266,17 @@ func handleAnsible(w http.ResponseWriter, r *http.Request){
 
 func handleKubernetes(w http.ResponseWriter, r *http.Request){
 
-	ansibleInfo := ansible_worker.GetInfo()
 
 	// Should iterate over multiple kubeconfigs
 	// for different clusters. Fetch clusters here.
 	// Clusters states modified only based on 
 	// ansible's actions.
 
-	//for _,n in range clients {
-	//}
-
 	queryParams := r.URL.Query()
 	macQuery := queryParams.Get("item")
 
 	if macQuery == "clusters" {
-		responseBody,err := kubeclient.GetClusters(ansibleInfo.KubeconfigPath, *httpContext)
+		responseBody,err := kubeclient.GetClusters(*httpContext)
 		if err != nil {
 			log.Printf("Failed to send Response")
 			http.Error(w, "Error Detected"+err.Error(), http.StatusInternalServerError)
@@ -276,30 +292,7 @@ func handleKubernetes(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	kc, err := kubeclient.New(ansibleInfo.KubeconfigPath)
-	if err != nil {
-		log.Printf("[HTTP] Failed to established kubernetes connection")
-		return
-	}
-
-	info,err := kc.ClusterInfo(*httpContext)
-	if err != nil {
-		log.Printf("[HTTP] Failed to query kubernetes") 
-		return
-	}
-
-	log.Printf("[HTTP] Kubernetes Context: version %s, nodes %d, namespaces %v", info.ServerVersion, info.NodeCount, info.Namespaces)
-
-	nodes,err := kc.Nodes(*httpContext)
-	if err != nil {
-		log.Printf("[HTTP] Failed to query nodes")
-		return
-	}
-
-	for _, n := range(nodes) {
-		log.Printf("[HTTP] node %s, status %s, cpu %s, mem %s, ip: %s",
-		n.Name, n.Status, n.CPUAllocatable, n.MemoryAllocatable, n.InternalIP)
-	}
+	info,err := kubeclient.GetClusters(*httpContext)
 	
 	var payload []any
 	responseBody := append(payload, info)

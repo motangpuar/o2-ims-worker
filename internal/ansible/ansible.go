@@ -9,12 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"encoding/json"
-
 	"github.com/apenella/go-ansible/v2/pkg/playbook"
 	"github.com/apenella/go-ansible/v2/pkg/execute"
 	ansiblejson "github.com/apenella/go-ansible/v2/pkg/execute/result/json"
 	"github.com/apenella/go-ansible/v2/pkg/execute/stdoutcallback"
-
 
 	//Internals
 	"github.com/motangpuar/o2-ims-worker/internal/kubernetes"
@@ -22,11 +20,6 @@ import (
 
 type template struct {
 	machineType string
-}
-
-type AnsibleInfo struct {
-	Cluster kubeclient.ClusterInfo
-	KubeconfigPath string
 }
 
 type AnsibleJSONResults struct {
@@ -41,14 +34,9 @@ type AnsibleJSONResults struct {
 
 type K3sCreds struct {
 	Server string `json:"server"`
-	Token string `json:"token"`
+	Token  string `json:"token"`
 }
 
-var PtrAnsibleInfi *AnsibleInfo
-
-func GetInfo() *AnsibleInfo {
-	return PtrAnsibleInfi
-}
 
 type K3sConfig struct {
 	ServerIP          string
@@ -75,8 +63,8 @@ func writeTemp(pattern string, data []byte, perm os.FileMode)(string, func()){
 
 	log.Printf("[ANSIBLE] Temp File name is %s", f.Name())
 
-	return f.Name(), func() { log.Printf("Not Delete") }
-	//return f.Name(), func() { os.Remove(f.Name()) }
+	//return f.Name(), func() { log.Printf("Not Delete: %s", pattern) }
+	return f.Name(), func() { os.Remove(f.Name()) }
 
 }
 
@@ -105,22 +93,18 @@ func extractCreds(res ansiblejson.AnsiblePlaybookJSONResults) (*K3sCreds, error)
 	return nil, fmt.Errorf("no valid k3s credentials found")
 }
 
-
 func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
-
 	sshKey, _ := os.ReadFile("assets/keys/test_provisioner")
-
 	var playbookYAML []byte
 	chunk, err := os.ReadFile("templates/ansible/k3s-fetch-token.yaml")
 	if err != nil {
 		return nil,err
 	}
+
 	playbookYAML = chunk
-
 	playbookFile, cleanupPB := writeTemp("playbook-*.yaml", playbookYAML, 0644)
-	defer cleanupPB()
-
 	keyFile, cleanupKF := writeTemp("id_ed25519-*", sshKey, 0600)
+	defer cleanupPB()
 	defer cleanupKF()
 	
 	opts := &playbook.AnsiblePlaybookOptions{
@@ -131,15 +115,6 @@ func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
 		BecomeMethod: "sudo",
 	}
 
-	cwd, err := os.Getwd()
-	macAsID := strings.ReplaceAll(macAddress, ":", "-")
-    filePattern := "kubeconfig-"+macAsID+".yaml"
-
-	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", filePattern)
-	
-	PtrAnsibleInfi = &AnsibleInfo{
-		KubeconfigPath: kubeconfigDest,
-	}
 	opts.AddExtraVar("ansible_become_pass", "password")
 	opts.AddExtraVar("mac_address", macAddress)
 	if userName == "ubuntu" {
@@ -164,7 +139,6 @@ func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
 		return nil,err
 	}
 
-
 	res, err := ansiblejson.ParseJSONResultsStream(&buff)
 	dump,err := extractCreds(*res)
 	if err != nil {
@@ -172,13 +146,27 @@ func FetchToken(targetIP, userName, macAddress string) (*K3sCreds, error) {
 		return nil,err
 	}
 
+	// Iterate over clusters and add token based on the master
+	// to Cluster
+	getClusters, err := kubeclient.GetClusters(context.Background())
+	for k,c := range getClusters.Cluster {
+		if k != "unclaimed" { 
+			for _,n := range c.Nodes {
+				if n.Node == macAddress {
+					c.Token = dump.Token
+					c.APIEndpoint = dump.Server
+				}
+			}
+		}
+	}
+
 	return dump, nil
 }
 
 func Populate(targetIP, macAddress, userName, templateMode string, nodeObj struct {
 	Name string
-	IP string
-	Mac string
+	IP   string
+	Mac  string
 	Role string
 }) (*ansiblejson.AnsiblePlaybookJSONResults,error) {
 
@@ -193,11 +181,6 @@ func Populate(targetIP, macAddress, userName, templateMode string, nodeObj struc
 	macAsID := strings.ReplaceAll(macAddress, ":", "-")
     filePattern := "kubeconfig-"+macAsID+".yaml"
 	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", filePattern)
-	
-	// add path to struct
-	PtrAnsibleInfi = &AnsibleInfo{
-		KubeconfigPath: kubeconfigDest,
-	}
 
 	var playbookYAML []byte
 	extraVar := make(map[string]interface{})
@@ -284,21 +267,3 @@ func Populate(targetIP, macAddress, userName, templateMode string, nodeObj struc
 	}
 	return res,nil
 }
-
-func InitAnsible() {
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Printf("[ANSIBLE] Failed to find path: %v", err)
-		return
-	}
-	kubeconfigDest := filepath.Join(cwd, "assets", "ansible", "kubeconfig-target.yaml")
-
-	PtrAnsibleInfi = &AnsibleInfo{
-		KubeconfigPath: kubeconfigDest,
-	}
-}
-
-func Gather() {
-	log.Printf("[ANSIBLE] Running ansible agent...")
-}
-

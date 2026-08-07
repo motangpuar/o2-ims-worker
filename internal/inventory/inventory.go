@@ -49,6 +49,7 @@ type MachineObject struct {
 	Kernel string
 	OSData any
 	Installed bool
+	Role string
 }
 
 type installedMachines struct {
@@ -93,7 +94,7 @@ func LogInstalledMachine(m, ot string, installedAt time.Time) error {
 }
 
 //func Generate(m, t, c,  ansibleTemplate string) {
-func (mobj *MachineObject) Generate(ip, m, t, c,  ansibleTemplate string) *MachineObject {
+func (mobj *MachineObject) Generate(ip, m, t, c, role, ansibleTemplate string) *MachineObject {
 	log.Printf("[Inventory Realm]--------------------")
 	log.Printf("[Inventory] Procsesing for %s", m)
 
@@ -107,6 +108,7 @@ func (mobj *MachineObject) Generate(ip, m, t, c,  ansibleTemplate string) *Machi
 			ID: macAsID,
 			Installed: false,
 			IP: ip,
+			Role: role,
 	}
 
 	switch t {
@@ -160,6 +162,7 @@ func (mobj *MachineObject) Generate(ip, m, t, c,  ansibleTemplate string) *Machi
 	machines[m] = &targetMachine
 
 	return &targetMachine
+
 }
 
 func genPXEEntry(mode string, m string, targetMachine *MachineObject){

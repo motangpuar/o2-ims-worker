@@ -7,6 +7,9 @@ namespace db {
         + BootFileUrl() string
         + OSType() string
         + ToMap() <font color=blue>map</font>[string]any
+        + GetTemplate() string
+        + GetCluster() string
+        + GetMachines() inventory.MachineObject
 
     }
     class "dhcpClients" << (S,Aquamarine) >> {
@@ -15,11 +18,15 @@ namespace db {
         - macAddress string
         - bootFileUrl string
         - osType string
+        - machineObject inventory.MachineObject
 
         + OfferIP() string
         + MACAddress() string
         + BootFileUrl() string
         + OSType() string
+        + GetTemplate() string
+        + GetCluster() string
+        + GetMachines() inventory.MachineObject
         + DHCPClient() *dhcpClients
         + ToMap() <font color=blue>map</font>[string]any
 

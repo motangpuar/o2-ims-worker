@@ -1,9 +1,9 @@
 @startuml
 top to bottom direction
 namespace http {
-    class "clusterJson" << (S,Aquamarine) >> {
-        + Info any
-        + Nodes any
+    class "HTTPError" << (S,Aquamarine) >> {
+        + Error string
+        + Message string
 
     }
     class "pipeLine" << (S,Aquamarine) >> {
@@ -16,7 +16,6 @@ namespace http {
 }
 
 
-"http.clusterJson""uses" o-- "http.any"
 
 
 @enduml

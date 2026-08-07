@@ -12,7 +12,18 @@ namespace kubernetes {
         + Events(ctx context.Context, namespace string) ([]EventInfo, error)
 
     }
+    class "Cluster" << (S,Aquamarine) >> {
+        + ID string
+        + KubeConfig string
+        + Token string
+        + APIEndpoint string
+        + Info *ClusterInfo
+        + Ready bool
+        + Nodes []<font color=blue>struct</font>{string, string, string, string}
+
+    }
     class "ClusterInfo" << (S,Aquamarine) >> {
+        + ClusterID string
         + NodeCount int
         + Namespaces []string
         + ServerVersion string
@@ -22,9 +33,7 @@ namespace kubernetes {
 
     }
     class "Clusters" << (S,Aquamarine) >> {
-        + Cluster []*ClusterInfo
-
-        + GetClusters() ([]ClusterInfo, error)
+        + Cluster <font color=blue>map</font>[string]*Cluster
 
     }
     class "EventInfo" << (S,Aquamarine) >> {
@@ -72,10 +81,11 @@ namespace kubernetes {
 }
 
 
+"kubernetes.Cluster""uses" o-- "kubernetes.ClusterInfo"
 "kubernetes.ClusterInfo""uses" o-- "kubernetes.EventInfo"
 "kubernetes.ClusterInfo""uses" o-- "kubernetes.NodeInfo"
 "kubernetes.ClusterInfo""uses" o-- "kubernetes.PodInfo"
-"kubernetes.Clusters""uses" o-- "kubernetes.ClusterInfo"
+"kubernetes.Clusters""uses" o-- "kubernetes.Cluster"
 
 
 @enduml

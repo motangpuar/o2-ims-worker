@@ -1,9 +1,8 @@
 @startuml
 top to bottom direction
 namespace ansible {
-    class "AnsibleInfo" << (S,Aquamarine) >> {
-        + Cluster kubeclient.ClusterInfo
-        + KubeconfigPath string
+    class "AnsibleJSONResults" << (S,Aquamarine) >> {
+        + Plays []<font color=blue>struct</font>{[]<font color=blue>struct</font>{<font color=blue>map</font>[string]<font color=blue>struct</font>{<font color=blue>interface</font>{}}}}
 
     }
     class "K3sConfig" << (S,Aquamarine) >> {
@@ -16,6 +15,11 @@ namespace ansible {
         + KubeReservedMem string
 
     }
+    class "K3sCreds" << (S,Aquamarine) >> {
+        + Server string
+        + Token string
+
+    }
     class "template" << (S,Aquamarine) >> {
         - machineType string
 
@@ -23,7 +27,6 @@ namespace ansible {
 }
 
 
-"ansible.AnsibleInfo""uses" o-- "kubeclient.ClusterInfo"
 
 
 @enduml

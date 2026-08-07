@@ -51,13 +51,20 @@ namespace inventory {
         + PreeSeedURL string
 
     }
-    class "MachineConfig" << (S,Aquamarine) >> {
+    class "MachineObject" << (S,Aquamarine) >> {
+        + IP string
+        + Cluster string
+        + Template string
         + ID string
         + OSName string
         + OSType string
         + Kernel string
         + OSData any
         + Installed bool
+        + Role string
+
+        + Generate(ip string, m string, t string, c string, role string, ansibleTemplate string) *MachineObject
+        + GetTemplate() string
 
     }
     class "RHELSpecific" << (S,Aquamarine) >> {
@@ -77,12 +84,12 @@ namespace inventory {
 
     }
     class "installedMachines" << (S,Aquamarine) >> {
-        + Machines <font color=blue>map</font>[string]*MachineConfig
+        + Machines <font color=blue>map</font>[string]*MachineObject
         + InstallTime time.Time
 
     }
     class "ptrMachines" << (S,Aquamarine) >> {
-        + Machines <font color=blue>map</font>[string]*MachineConfig
+        + Machines <font color=blue>map</font>[string]*MachineObject
 
     }
 }
@@ -91,10 +98,10 @@ namespace inventory {
 "inventory.BaseConfig" *-- "extends""inventory.UbuntuConfig"
 
 
-"inventory.MachineConfig""uses" o-- "inventory.any"
-"inventory.installedMachines""uses" o-- "inventory.MachineConfig"
+"inventory.MachineObject""uses" o-- "inventory.any"
+"inventory.installedMachines""uses" o-- "inventory.MachineObject"
 "inventory.installedMachines""uses" o-- "time.Time"
-"inventory.ptrMachines""uses" o-- "inventory.MachineConfig"
+"inventory.ptrMachines""uses" o-- "inventory.MachineObject"
 
 
 @enduml

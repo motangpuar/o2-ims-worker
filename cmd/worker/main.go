@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
-	ansible_worker "github.com/motangpuar/o2-ims-worker/internal/ansible"
 	"github.com/motangpuar/o2-ims-worker/internal/config"
 	"github.com/motangpuar/o2-ims-worker/internal/db"
 	"github.com/motangpuar/o2-ims-worker/internal/dhcp"
@@ -113,9 +112,6 @@ func main()  {
 	if *disableHTTP != true {
 		go http_handler.Serve(ctx)
 	}
-
-	//go ansible_worker.Populate()
-	ansible_worker.InitAnsible()
 
 	// Wait for it to stop
 	sigChan := make(chan os.Signal, 1)

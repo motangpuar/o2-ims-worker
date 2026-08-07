@@ -1,7 +1,10 @@
 package kubeclient
 
 import (
+	"strings"
+	"os"
 	"context"
+	"path/filepath"
 	"fmt"
 	"log"
 	corev1 "k8s.io/api/core/v1"
@@ -48,38 +51,75 @@ type Cluster struct{
 	Token string
 	APIEndpoint string
 	Info *ClusterInfo
+	Ready bool
+	Nodes []struct{
+		Node string
+		Role string
+		OS string
+		IP string
+	}
 }
 
 var PtrClusterMap *Clusters
 
-func InitCluster(id string) {
+func InitCluster(id string, nodes *[]struct{
+	Node string
+	Role string
+	OS string
+	IP string
+}){
+	cwd, err := os.Getwd()
+	if err != nil {
+		return 
+	}
+
 	if PtrClusterMap == nil {
 		PtrClusterMap = &Clusters{
 			Cluster: make(map[string]*Cluster),
 		}
 	}
-	PtrClusterMap.Cluster[id] = &Cluster{ID: id}
+
+	for _,n := range(*nodes){
+		if n.Role == "master" {
+			macAsID := strings.ReplaceAll(n.Node, ":", "-")
+    		filePattern := "kubeconfig-"+macAsID+".yaml"
+			kubeconfigDest := filepath.Join(cwd, "assets", "ansible", filePattern)
+			PtrClusterMap.Cluster[id] = &Cluster{
+				ID: id,
+				Nodes: *nodes,
+				KubeConfig: kubeconfigDest,
+			}
+		}
+	}
 	log.Printf("[KUBERNETES] Created cluster %v", PtrClusterMap)
 }
 
-func GetClusters(path string, ctx context.Context) (*Clusters,error) {
-	for key,_ := range PtrClusterMap.Cluster {
-		kc, err := New(path)
+
+//
+// This function should use kubeconfig path from its own self 
+// Not hard pass from arguments
+//
+func GetClusters(ctx context.Context) (*Clusters,error) {
+	for key,cluster := range PtrClusterMap.Cluster {
+		log.Printf("[KUBERNETES] Fetch using kubeconfig %s", cluster.KubeConfig)
+		kc, err := New(cluster.KubeConfig)
 		if err != nil {
 			log.Printf("[KUBERNETES] Error using kubeconfig")
-			return PtrClusterMap, err
+			PtrClusterMap.Cluster[key].Ready = false
+			continue
+			//return PtrClusterMap, err
+		} else {
+			PtrClusterMap.Cluster[key].Ready = true
 		}
 		info,err := kc.ClusterInfo(ctx)
 		if err != nil {
 			log.Printf("[KUBERNETS] Failed to fetch clusterinfo")
 			return nil,err
 		}
-		log.Printf("[KUBERNETES] Current ID %v", key)
-		PtrClusterMap.Cluster[key] = &Cluster{
-			Info: info,
-		}
+		log.Printf("[KUBERNETES] Current Cluster Info: %+v", info)
+		// Populate cluster info
+		PtrClusterMap.Cluster[key].Info = info
 	}
-
 	return PtrClusterMap, nil
 }
 
@@ -225,8 +265,6 @@ func parseNode(node corev1.Node) NodeInfo {
 		Labels:            node.Labels,
 	}
 }
-
-// Pods
 
 type PodInfo struct {
 	Name      string
